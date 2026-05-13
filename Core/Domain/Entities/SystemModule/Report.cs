@@ -9,12 +9,6 @@ namespace Domain.Entities.SystemModule
 {
     public class Report : BaseEntity<int>
     {
-        public int NumOfVideo { get; set; }
-        public int NumOfText { get; set; }
-        public int ViolentText { get; set; }
-        public int ViolentVideo { get; set; }
 
-        public int UserId { get; set; }
-        public User User { get; set; }
     }
 }

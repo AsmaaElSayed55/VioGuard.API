@@ -9,7 +9,6 @@ namespace Domain.Entities.UserModule
         public string Password { get; set; }
 
         // Navigation properties
-        public ICollection<Content> UploadedContents { get; set; } = new List<Content>();
-        public ICollection<Report> Reports { get; set; } = new List<Report>();
+        public ICollection<Content> Contents { get; set; }
     }
 }

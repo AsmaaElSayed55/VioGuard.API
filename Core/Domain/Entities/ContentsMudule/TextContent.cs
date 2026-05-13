@@ -9,7 +9,7 @@ namespace Domain.Entities.ContentsMudule
     public class TextContent : Content
     {
         public bool ViolentResult { get; set; }
-        public List<string> TextContext { get; set; } = new();
-        public List<string> ViolentWords { get; set; } = new();
+        public string TextContext { get; set; }
+        public List<string> ViolentWords { get; set; }
     }
 }
