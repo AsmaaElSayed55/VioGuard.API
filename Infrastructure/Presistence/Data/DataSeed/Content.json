@@ -1,0 +1,49 @@
+[
+  {
+    "URL": "https://storage.vioguard.ai/videos/stream_01.mp4",
+    "Type": "Video",
+    "UserEmail": "alice.smith@vioguard.com",
+    "ViolentPercent": 78.4,
+    "TextContext": "",
+    "ViolentWords": []
+  },
+  {
+    "URL": "https://storage.vioguard.ai/text/forum_post_12.txt",
+    "Type": "Text",
+    "UserEmail": "david.m@gmail.com",
+    "ViolentPercent": 0.0,
+    "TextContext": "I am absolutely going to kill that target character in the video game tonight! Bring all the blood.",
+    "ViolentWords": ["kill", "blood"]
+  },
+  {
+    "URL": "https://storage.vioguard.ai/videos/nature_walk.mp4",
+    "Type": "Video",
+    "UserEmail": "s.jenkins@academy.org",
+    "ViolentPercent": 2.1,
+    "TextContext": "",
+    "ViolentWords": []
+  },
+  {
+    "URL": "https://storage.vioguard.ai/text/chat_log_04.txt",
+    "Type": "Text",
+    "UserEmail": "omar.rayan@techcorp.io",
+    "TextContext": "Hello team, please remember to update the server configurations before our deployment sequence tomorrow morning. Have a safe weekend!",
+    "ViolentResult": false,
+    "ViolentWords": []
+  },
+  {
+    "URL": "https://storage.vioguard.ai/videos/protest_news_feed.mp4",
+    "Type": "Video",
+    "UserEmail": "david.m@gmail.com",
+    "ViolentPercent": 89.9,
+    "TextContext": "",
+    "ViolentWords": []
+  },
+  {
+    "URL": "https://storage.vioguard.ai/text/comment_section_88.txt",
+    "Type": "Text",
+    "UserEmail": "alice.smith@vioguard.com",
+    "TextContext": "This is an outrageous attack on our community infrastructure! We must strike back with heavy violence immediately.",
+    "ViolentWords": ["attack", "violence"]
+  }
+]

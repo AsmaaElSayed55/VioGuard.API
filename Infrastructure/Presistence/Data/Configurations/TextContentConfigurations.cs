@@ -10,7 +10,7 @@ namespace Presistence.Data.Configurations
                .IsRequired()
                .HasDefaultValue(false);
 
-            builder.Property(t => t.TextContext)
+            builder.Property(t => t.textContext)
                    .IsRequired()
                    .HasColumnType("nvarchar(max)");
 

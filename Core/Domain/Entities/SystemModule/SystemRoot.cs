@@ -9,8 +9,10 @@ namespace Domain.Entities.SystemModule
 {
     public class SystemRoot : BaseEntity<int>
     {
-        public ICollection<History> Histories { get; set; }
-        public ICollection<Model> Models { get; set; }
-        public ICollection<Report> Reports { get; set; }
+        public string SystemName { get; set; } = "VioGuard Engine";
+
+        // Navigation Properties
+        public ICollection<History> Histories { get; set; } = new List<History>();
+        public ICollection<Model> Models { get; set; } = new List<Model>();
     }
 }
