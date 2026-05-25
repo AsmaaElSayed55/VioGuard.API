@@ -16,7 +16,6 @@ namespace Presentation.Controllers
     {
         private readonly HttpClient _mlHttpClient;
 
-        // Kept intact to protect against Dependency Injection container errors on startup
         public DetectionController(HttpClient mlHttpClient)
         {
             _mlHttpClient = mlHttpClient;
@@ -28,7 +27,6 @@ namespace Presentation.Controllers
             if (string.IsNullOrWhiteSpace(request.Url))
                 return BadRequest("Invalid target destination link.");
 
-            // 🚀 BYPASSED: Creating static findings mock list
             var staticFindings = new List<FindingItemDto>
             {
                 new FindingItemDto("Profanity", "Detected high-frequency inappropriate linguistic markers.", true),
@@ -36,7 +34,6 @@ namespace Presentation.Controllers
                 new FindingItemDto("Graphic Visuals", "Metadata scanners flagged matching visual frames.", false)
             };
 
-            // 🚀 BYPASSED: Mapping straight to the UI Response DTO using safe positional parameters
             var finalUiResult = new DetectionResponseDto(
                 Guid.NewGuid().ToString()[..6],                          // Id
                 request.Url,                                              // SourceUrl

@@ -14,7 +14,6 @@ namespace Presentation.Controllers
     [Route("api/[controller]")]
     public class HistoryController : ControllerBase
     {
-        // Footprint left open for future Service architecture injection 
         public HistoryController()
         {
         }
@@ -22,7 +21,6 @@ namespace Presentation.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<HistoryListItemDto>>> GetUserHistory([FromQuery] string type = "All")
         {
-            // 🚀 BYPASSED: Using safe positional instantiation for the tracking list
             var items = new List<HistoryListItemDto>
             {
                 new HistoryListItemDto("1", "youtube.com/watch?v=dQw...", "Video", "2 hours ago", "Safe"),
@@ -41,7 +39,6 @@ namespace Presentation.Controllers
         [HttpGet("{id}/details")]
         public async Task<ActionResult<HistoryDetailsDto>> GetDetails(string id)
         {
-            // 🚀 FIXED: Parameter names removed to completely protect against compilation mismatches
             if (id == "3")
             {
                 return Ok(new HistoryDetailsDto(
@@ -71,7 +68,6 @@ namespace Presentation.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteRecord(string id)
         {
-            // 🚀 BYPASSED: Instantly returns 244 NoContent to mock a successful deletion sweep
             return NoContent();
         }
     }

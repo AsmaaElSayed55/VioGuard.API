@@ -12,7 +12,6 @@ namespace Presentation.Controllers
     {
         private readonly IUserService _userService;
 
-        // Constructor kept intact to protect against Dependency Injection resolution failures
         public AuthController(IUserService userService)
         {
             _userService = userService;
@@ -21,7 +20,6 @@ namespace Presentation.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterUserDto registerUserDto)
         {
-            // 🚀 FIXED: Removed the name labels to map positionally by order
             var staticRegisteredUser = new UserDto(
                 "usr_mock_reg_7712",
                 registerUserDto.FullName ?? "Static Registered User",
@@ -46,7 +44,6 @@ namespace Presentation.Controllers
                 false
             );
 
-            // Also removing labels here just in case AuthResponseDto uses camelCase too!
             var response = new AuthResponseDto(
                 "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.staticMockTokenBlobValueHere1234567890",
                 DateTime.UtcNow.AddHours(2),
