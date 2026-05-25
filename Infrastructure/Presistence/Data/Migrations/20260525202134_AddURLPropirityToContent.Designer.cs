@@ -12,8 +12,8 @@ using Presistence.Data;
 namespace Presistence.Data.Migrations
 {
     [DbContext(typeof(VioGuardDbContext))]
-    [Migration("20260525080108_FixAIModelInheritance")]
-    partial class FixAIModelInheritance
+    [Migration("20260525202134_AddURLPropirityToContent")]
+    partial class AddURLPropirityToContent
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -27,8 +27,9 @@ namespace Presistence.Data.Migrations
 
             modelBuilder.Entity("Domain.Entities.ContentsMudule.Content", b =>
                 {
-                    b.Property<string>("URL")
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)")
+                        .HasColumnName("URL");
 
                     b.Property<string>("ContentType")
                         .IsRequired()
@@ -46,37 +47,44 @@ namespace Presistence.Data.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
 
-                    b.Property<int>("Id")
-                        .HasColumnType("int");
-
                     b.Property<DateTime?>("LastModified")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("URL")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("UserEmail")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("nvarchar(max)");
 
-                    b.HasKey("URL");
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(256)");
 
-                    b.HasIndex("UserEmail");
+                    b.HasKey("Id");
 
-                    b.ToTable("Contents", (string)null);
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Contents", null, t =>
+                        {
+                            t.Property("URL")
+                                .HasColumnName("URL1");
+                        });
 
                     b.HasDiscriminator<string>("ContentType").HasValue("Content");
 
                     b.UseTphMappingStrategy();
                 });
 
-            modelBuilder.Entity("Domain.Entities.SystemModule.History", b =>
+            modelBuilder.Entity("Domain.Entities.SystemModule.HistoryRecord", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime>("ActionDate")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<string>("AttachedUserEmail")
                         .IsRequired()
@@ -84,7 +92,8 @@ namespace Presistence.Data.Migrations
 
                     b.Property<string>("ContentType")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<string>("ContentUrl")
                         .IsRequired()
@@ -99,23 +108,24 @@ namespace Presistence.Data.Migrations
                     b.Property<DateTime?>("LastModified")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("SystemId")
-                        .HasColumnType("int");
+                    b.Property<string>("SystemId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("SystemId");
 
-                    b.ToTable("History");
+                    b.ToTable("Histories", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Entities.SystemModule.ModelsModule.AIModel", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    b.Property<double>("AccuracyThreshold")
+                        .HasColumnType("float");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -123,42 +133,44 @@ namespace Presistence.Data.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Framework")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<DateTime?>("LastModified")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("ModelType")
                         .IsRequired()
-                        .HasMaxLength(8)
-                        .HasColumnType("nvarchar(8)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
-                    b.Property<int>("SystemId")
-                        .HasColumnType("int");
+                    b.Property<string>("SystemId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("SystemId");
 
                     b.ToTable("AIModels", (string)null);
-
-                    b.HasDiscriminator<string>("ModelType").HasValue("AIModel");
-
-                    b.UseTphMappingStrategy();
                 });
 
             modelBuilder.Entity("Domain.Entities.SystemModule.SystemRoot", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<string>("CreatedBy")
                         .HasColumnType("nvarchar(max)");
@@ -168,31 +180,33 @@ namespace Presistence.Data.Migrations
 
                     b.Property<string>("SystemName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.HasKey("Id");
 
-                    b.ToTable("SystemRoot");
+                    b.ToTable("SystemRoots", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Entities.UserModule.User", b =>
                 {
-                    b.Property<string>("Email")
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<string>("Id")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)")
+                        .HasColumnName("Email");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<string>("CreatedBy")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("FullName")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<int>("Id")
-                        .HasColumnType("int");
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
 
                     b.Property<bool>("IsMonthlyReportEnabled")
                         .HasColumnType("bit");
@@ -204,7 +218,12 @@ namespace Presistence.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.HasKey("Email");
+                    b.Property<string>("UserInternalId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("Id");
+
+                    b.HasKey("Id");
 
                     b.ToTable("Users", (string)null);
                 });
@@ -213,18 +232,21 @@ namespace Presistence.Data.Migrations
                 {
                     b.HasBaseType("Domain.Entities.ContentsMudule.Content");
 
-                    b.Property<bool>("ViolentResult")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
+                    b.Property<string>("ViolentResult")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ViolentWords")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("textContext")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.ToTable("Contents", t =>
+                        {
+                            t.Property("URL")
+                                .HasColumnName("URL1");
+                        });
 
                     b.HasDiscriminator().HasValue("Text");
                 });
@@ -233,31 +255,14 @@ namespace Presistence.Data.Migrations
                 {
                     b.HasBaseType("Domain.Entities.ContentsMudule.Content");
 
-                    b.Property<decimal>("ViolentPercent")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(5,2)")
-                        .HasDefaultValue(0m);
-
-                    b.HasDiscriminator().HasValue("Video");
-                });
-
-            modelBuilder.Entity("Domain.Entities.SystemModule.ModelsModule.Text_Detect_Model", b =>
-                {
-                    b.HasBaseType("Domain.Entities.SystemModule.ModelsModule.AIModel");
-
-                    b.HasDiscriminator().HasValue("Text");
-                });
-
-            modelBuilder.Entity("Domain.Entities.SystemModule.ModelsModule.Video_Detect_Model", b =>
-                {
-                    b.HasBaseType("Domain.Entities.SystemModule.ModelsModule.AIModel");
-
-                    b.Property<double>("AccuracyThreshold")
+                    b.Property<double>("ViolentPercent")
                         .HasColumnType("float");
 
-                    b.Property<string>("Framework")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.ToTable("Contents", t =>
+                        {
+                            t.Property("URL")
+                                .HasColumnName("URL1");
+                        });
 
                     b.HasDiscriminator().HasValue("Video");
                 });
@@ -266,40 +271,38 @@ namespace Presistence.Data.Migrations
                 {
                     b.HasOne("Domain.Entities.UserModule.User", "User")
                         .WithMany("Contents")
-                        .HasForeignKey("UserEmail")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("UserId");
 
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Domain.Entities.SystemModule.History", b =>
+            modelBuilder.Entity("Domain.Entities.SystemModule.HistoryRecord", b =>
                 {
-                    b.HasOne("Domain.Entities.SystemModule.SystemRoot", "System")
+                    b.HasOne("Domain.Entities.SystemModule.SystemRoot", "SystemRoot")
                         .WithMany("Histories")
                         .HasForeignKey("SystemId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("System");
+                    b.Navigation("SystemRoot");
                 });
 
             modelBuilder.Entity("Domain.Entities.SystemModule.ModelsModule.AIModel", b =>
                 {
-                    b.HasOne("Domain.Entities.SystemModule.SystemRoot", "System")
-                        .WithMany("Models")
+                    b.HasOne("Domain.Entities.SystemModule.SystemRoot", "SystemRoot")
+                        .WithMany("AIModels")
                         .HasForeignKey("SystemId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("System");
+                    b.Navigation("SystemRoot");
                 });
 
             modelBuilder.Entity("Domain.Entities.SystemModule.SystemRoot", b =>
                 {
-                    b.Navigation("Histories");
+                    b.Navigation("AIModels");
 
-                    b.Navigation("Models");
+                    b.Navigation("Histories");
                 });
 
             modelBuilder.Entity("Domain.Entities.UserModule.User", b =>

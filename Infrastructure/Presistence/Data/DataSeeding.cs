@@ -63,7 +63,8 @@ namespace Presistence.Data
                         {
                             await userRepo.AddAsync(new User
                             {
-                                Id = u.Email, // Assign email directly to the inherited base entity identity key
+                           
+                                Id = u.Email,
                                 FullName = u.FullName,
                                 Password = u.Password,
                                 UserInternalId = Guid.NewGuid().ToString()[..8]
@@ -93,7 +94,9 @@ namespace Presistence.Data
                             {
                                 await contentRepo.AddAsync(new VideoContent
                                 {
-                                    Id = c.URL, // Mapped to primary key column URL
+                                    // 💡 FIX: Use c.Id (the "CNT-01" value) instead of forcing the URL string as the ID!
+                                    Id = c.Id,
+                                    URL = c.URL, // Ensure your VideoContent entity has a separate URL property!
                                     UserEmail = matchingUser.Id,
                                     ViolentPercent = c.ViolentPercent
                                 });
@@ -102,16 +105,15 @@ namespace Presistence.Data
                             {
                                 await contentRepo.AddAsync(new TextContent
                                 {
-                                    Id = c.URL, // Mapped to primary key column URL
+                                    // 💡 FIX: Use c.Id (the "CNT-02" value)
+                                    Id = c.Id,
+                                    URL = c.URL,
                                     UserEmail = matchingUser.Id,
                                     textContext = c.TextContext,
-
-                                    // 🚀 FIXED: Safely join the list into a clean comma-separated primitive string!
                                     ViolentWords = c.ViolentWords != null && c.ViolentWords.Any()
-                                     ? string.Join(", ", c.ViolentWords)
-                                     : string.Empty,
-
-                                    ViolentResult = "Analysed" // Your remainder code assignment block...
+                                                     ? string.Join(", ", c.ViolentWords)
+                                                     : string.Empty,
+                                    ViolentResult = "Analysed"
                                 });
                             }
                         }
@@ -149,6 +151,7 @@ namespace Presistence.Data
 
     public class ContentSeedModel
     {
+        public string Id { get; set; } = string.Empty; // This will be the unique identifier for the content (e.g., "CNT-01")
         public string URL { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
         public string UserEmail { get; set; } = string.Empty;

@@ -16,24 +16,18 @@ namespace Presentation.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] RegisterUserDto registerDto)
+        public async Task<IActionResult> Register([FromBody] RegisterUserDto registerUserDto)
         {
-            if (registerDto.Password != registerDto.ConfirmPassword)
+            var result = await _userService.CreateUserAsync(registerUserDto);
+
+            if (result == null)
             {
-                return BadRequest(new { Message = "Passwords do not match." });
+                // 💡 RESULT: Postman will get a clean, diagnostic 400 Bad Request response 
+                return BadRequest(new { message = "A user with this email address is already registered." });
             }
 
-            var createdUser = await _userService.CreateUserAsync(registerDto);
-
-            var response = new AuthResponseDto(
-                Token: "generated-jwt-handshake-token",
-                Expiration: DateTime.UtcNow.AddDays(7),
-                User: createdUser
-            );
-
-            return CreatedAtAction(nameof(Register), response);
+            return Ok(result);
         }
-
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
         {

@@ -33,15 +33,23 @@ namespace Services.Implementations
             return _mapper.Map<IEnumerable<UserDto>>(users);
         }
 
-        public async Task<UserDto> CreateUserAsync(RegisterUserDto registerUserDto)
+        public async Task<UserDto?> CreateUserAsync(RegisterUserDto registerUserDto)
         {
             var repo = _unitOfWork.GetRepository<User, string>();
 
+            // Check if a user with this email (Id) already exists!
+            var existingUser = await repo.GetByIdAsync(registerUserDto.Email);
+            if (existingUser != null)
+            {
+                // 💡 CHANGE THIS LINE: Remove the throw statement and return null instead!
+                return null;
+            }
+
             var userEntity = new User
             {
-                Id = registerUserDto.Email, // Matches your DB Primary Key string requirement
+                Id = registerUserDto.Email,
                 FullName = registerUserDto.FullName,
-                Password = registerUserDto.Password, // Note: Hash this string in production!
+                Password = registerUserDto.Password,
                 UserInternalId = Guid.NewGuid().ToString()[..8],
                 IsMonthlyReportEnabled = true
             };
@@ -51,7 +59,6 @@ namespace Services.Implementations
 
             return _mapper.Map<UserDto>(userEntity);
         }
-
         public async Task<UserDto> UpdateProfileAsync(string email, UpdateProfileDto updateProfileDto)
         {
             var repo = _unitOfWork.GetRepository<User, string>();

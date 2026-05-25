@@ -5,7 +5,7 @@ namespace Domain.Entities.ContentsMudule
 {
     public abstract class Content : BaseEntity<string>
     {
-        // Your Primary Key (URL Column) mapped in configuration
+        public string URL { get; set; }
         public DateTime DetectionDate { get; set; }
         public string UserEmail { get; set; } = string.Empty; // FK
         public string ContentType { get; set; } = string.Empty;

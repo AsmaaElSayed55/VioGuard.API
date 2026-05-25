@@ -47,6 +47,10 @@ namespace Presistence.Data.Migrations
                     b.Property<DateTime?>("LastModified")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("URL")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("UserEmail")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -58,7 +62,11 @@ namespace Presistence.Data.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Contents", (string)null);
+                    b.ToTable("Contents", null, t =>
+                        {
+                            t.Property("URL")
+                                .HasColumnName("URL1");
+                        });
 
                     b.HasDiscriminator<string>("ContentType").HasValue("Content");
 
@@ -231,6 +239,12 @@ namespace Presistence.Data.Migrations
                     b.Property<string>("textContext")
                         .HasColumnType("nvarchar(max)");
 
+                    b.ToTable("Contents", t =>
+                        {
+                            t.Property("URL")
+                                .HasColumnName("URL1");
+                        });
+
                     b.HasDiscriminator().HasValue("Text");
                 });
 
@@ -240,6 +254,12 @@ namespace Presistence.Data.Migrations
 
                     b.Property<double>("ViolentPercent")
                         .HasColumnType("float");
+
+                    b.ToTable("Contents", t =>
+                        {
+                            t.Property("URL")
+                                .HasColumnName("URL1");
+                        });
 
                     b.HasDiscriminator().HasValue("Video");
                 });

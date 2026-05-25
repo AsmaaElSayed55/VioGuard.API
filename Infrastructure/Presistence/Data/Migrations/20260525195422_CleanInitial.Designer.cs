@@ -12,8 +12,8 @@ using Presistence.Data;
 namespace Presistence.Data.Migrations
 {
     [DbContext(typeof(VioGuardDbContext))]
-    [Migration("20260525161137_LastUpdate")]
-    partial class LastUpdate
+    [Migration("20260525195422_CleanInitial")]
+    partial class CleanInitial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
