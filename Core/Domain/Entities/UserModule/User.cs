@@ -1,6 +1,4 @@
-﻿using Domain.Entities.ContentsMudule;
-using Domain.Entities.SystemModule;
-namespace Domain.Entities.UserModule
+﻿namespace Domain.Entities.UserModule
 {
     public class User : BaseEntity<int>
     {

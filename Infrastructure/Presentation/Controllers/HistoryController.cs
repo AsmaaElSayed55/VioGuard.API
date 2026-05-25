@@ -15,7 +15,7 @@ namespace Presentation.Controllers
         }
 
         [HttpGet("all")]
-        public async Task<IActionResult> GetGlobalLogs()
+        public async Task<IActionResult> GetGlobalLogs() 
         {
             var logs = await _historyService.GetAllHistoriesAsync();
             return Ok(logs);

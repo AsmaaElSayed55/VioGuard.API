@@ -6,6 +6,6 @@
         public string ContentUrl { get; init; }
         public string ContentType { get; init; }
         public DateTime ActionDate { get; init; }
-        public required string AttachedUserEmail { get; init; }
+        public string AttachedUserEmail { get; init; }
     }
 }

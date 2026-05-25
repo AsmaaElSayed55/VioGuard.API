@@ -12,7 +12,7 @@ namespace Presistence.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.ApplyConfigurationsFromAssembly(typeof(AssemblyReference).Assembly);
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(PresistenceAssemblyReference).Assembly);
         }
 
         public DbSet<User> Users { get; set; }

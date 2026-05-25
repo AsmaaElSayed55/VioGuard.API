@@ -1,11 +1,4 @@
-﻿using Domain.Entities.SystemModule.ModelsModule;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Domain.Entities.SystemModule
+﻿namespace Domain.Entities.SystemModule
 {
     public class SystemRoot : BaseEntity<int>
     {

@@ -1,9 +1,13 @@
 
 using Domain.Contracts;
 using Microsoft.EntityFrameworkCore;
-using Presistence;
+using Microsoft.Extensions.DependencyInjection;
 using Presistence.Data;
 using Presistence.Repositories;
+using Services;
+using Services.Abstraction.Contracts;
+using Services.Implementations;
+using System.Reflection.Metadata;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace VioGuard.API
@@ -18,45 +22,38 @@ namespace VioGuard.API
 
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddSwaggerGen();
 
 
-            // 1. Register your DbContext (Make sure this is already there)
             builder.Services.AddDbContext<VioGuardDbContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+            {
+            options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+            });
 
-            // 2. Register the Generic IGenericRepository interface and its implementation
-            //   builder.Services.AddScoped(typeof(AssemblyReference).Assembly, typeof(GenericRepository<IGenericRepository, GenericRepository>));
-
-            // 3. Register the Unit of Work (This fixes your exact error)
+            builder.Services.AddScoped<IDataSeeding, DataSeeding>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-            // 4. Register the DataSeeding service if you resolve it from services later
-            builder.Services.AddScoped<IDataSeeding, DataSeeding>();
+            builder.Services.AddAutoMapper(cfg => { }, typeof(ServicesAssemblyReference).Assembly);
+            builder.Services.AddScoped<IServiceManager, ServiceManager>();
 
             var app = builder.Build();
-            // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-            builder.Services.AddOpenApi();
 
             using (var scope = app.Services.CreateScope())
             {
                 var services = scope.ServiceProvider;
                 try
                 {
-                    var context = services.GetRequiredService<VioGuardDbContext>();                    // Ensure database migrations are up to date
-                    await context.Database.MigrateAsync();
-
-                    var unitOfWork = services.GetRequiredService<IUnitOfWork>();
-                    var seeder = new Infrastructure.Presistence.Data.Seeding.DataSeeding(unitOfWork);
-                    await seeder.SeedAsync();
+                    var seeder = services.GetRequiredService<IDataSeeding>();
+                    // This triggers Migrate() inside your class to create the DB
+                    await seeder.SeedDataAsync();
                 }
                 catch (Exception ex)
                 {
-                    var logger = services.GetRequiredService<ILogger<Program>>();
-                    logger.LogError(ex, "An error occurred while seeding the data infrastructure layer.");
+                    // Log the error if seeding fails (check your Console window!)
+                    Console.WriteLine($"An error occurred: {ex.Message}");
                 }
             }
 
-            // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();

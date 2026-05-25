@@ -4,11 +4,11 @@ using Services.Abstraction.Contracts;
 using Shared.Dtos;
 namespace Services.Implementations
 {
-    public class HistoryManager : IHistoryService
+    public class HistoryService : IHistoryService
     {
         private readonly IUnitOfWork _unitOfWork;
 
-        public HistoryManager(IUnitOfWork unitOfWork)
+        public HistoryService(IUnitOfWork unitOfWork, AutoMapper.IMapper mapper)
         {
             _unitOfWork = unitOfWork;
         }

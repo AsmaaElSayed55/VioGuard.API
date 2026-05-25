@@ -1,7 +1,4 @@
-﻿using Domain.Entities.UserModule;
-using System;
-using System.Collections.Generic;
-namespace Domain.Entities.ContentsMudule
+﻿namespace Domain.Entities.ContentsMudule
 {
     public abstract class Content : BaseEntity<int>
     {
