@@ -1,8 +1,12 @@
-﻿using Domain.Contracts;
-using Domain.Entities.ContentsMudule; 
+﻿using System;
+using System.Linq;
+using System.Threading.Tasks;
+using Domain.Contracts;
+using Domain.Entities.ContentsMudule; // Matches your solution spelling namespace
 using Domain.Entities.UserModule;
 using Services.Abstraction.Contracts;
-using Shared.Dtos;
+using Shared.Dtos.Report;
+
 namespace Services.Implementations
 {
     public class ReportService : IReportService
@@ -14,97 +18,70 @@ namespace Services.Implementations
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<MonthlyReportDto> GetUserMonthlyReportAsync(string userEmail)
+        public async Task<MonthlyReportDashboardDto> GetMonthlyDashboardMetricsAsync(string userEmail)
         {
-            var userRepo = _unitOfWork.GetRepository<User, int>();
-            var contentRepo = _unitOfWork.GetRepository<Content, int>();
+            var contentRepo = _unitOfWork.GetRepository<Content, string>();
+            var userRepo = _unitOfWork.GetRepository<User, string>();
 
-            var allUsers = await userRepo.GetAllAsync(asNoTracking: true);
-            var user = allUsers.FirstOrDefault(u => u.Email == userEmail);
-            if (user == null)
-            {
-                throw new Exception("User account not found.");
-            }
+            // Get user settings to see if reports are enabled
+            var user = await userRepo.GetByIdAsync(userEmail);
+            bool isReportEnabled = user?.IsMonthlyReportEnabled ?? false;
 
-            var startDate = DateTime.UtcNow.AddDays(-30);
-            var timeRangeText = $"{startDate:MMM d} - {DateTime.UtcNow:MMM d}";
+            // Gather all content logs for this user in the last 30 days
+            var thirtyDaysAgo = DateTime.UtcNow.AddDays(-30);
+            var contents = await contentRepo.GetAllAsync(asNoTracking: true);
 
-            var allContents = await contentRepo.GetAllAsync(asNoTracking: true);
-
-            var userContents = allContents
-                .Where(c => c.UserEmail == user.Email && c.DetectionDate >= startDate)
+            var userLogs = contents
+                .Where(c => c.UserEmail.Equals(userEmail, StringComparison.OrdinalIgnoreCase) && c.DetectionDate >= thirtyDaysAgo)
                 .ToList();
 
-            var textLogs = userContents.OfType<TextContent>().ToList();
-            var videoLogs = userContents.OfType<VideoContent>().ToList();
+            // Split metrics (Table-Per-Hierarchy model evaluation)
+            var videoLogs = userLogs.OfType<VideoContent>().ToList();
+            var textLogs = userLogs.OfType<TextContent>().ToList();
 
-            int textTotal = textLogs.Count;
-            int textViolent = textLogs.Count(t => t.ViolentResult == true);
-            int textAgainstViolence = textLogs.Count(t =>
-                t.ViolentWords != null &&
-                t.ViolentWords.Any(word => string.Equals(word, "against", StringComparison.OrdinalIgnoreCase))
-            );
-            int textNeutral = textTotal - textViolent - textAgainstViolence;
+            // Calculate text segments
+            int textViolent = textLogs.Count(t => t.ViolentResult.Contains("Violent", StringComparison.OrdinalIgnoreCase));
+            int textAgainst = textLogs.Count(t => t.ViolentResult.Contains("Safe", StringComparison.OrdinalIgnoreCase));
+            int textNeutral = textLogs.Count - (textViolent + textAgainst);
 
-            int videoTotal = videoLogs.Count;
-            int videoViolent = videoLogs.Count(v => v.ViolentPercent > 0);
-            int videoNonViolent = videoTotal - videoViolent;
+            // Calculate video segments
+            int videoViolent = videoLogs.Count(v => v.ViolentPercent > 25.0); // example threshold rule
+            int videoNonViolent = videoLogs.Count - videoViolent;
 
-            int totalAnalyses = textTotal + videoTotal;
+            int totalAnalyses = userLogs.Count;
             int totalViolent = textViolent + videoViolent;
-            int totalNonViolent = totalAnalyses - totalViolent;
 
-            double violencePercentage = totalAnalyses > 0
-                ? Math.Round(((double)totalViolent / totalAnalyses) * 100, 0)
+            double violencePercent = totalAnalyses > 0
+                ? Math.Round(((double)totalViolent / totalAnalyses) * 100, 1)
                 : 0.0;
 
-            // 5. Structure payload mappings for transmission
-            var overallStats = new OverallStatsDto(
+            return new MonthlyReportDashboardDto(
                 TotalAnalyses: totalAnalyses,
-                ViolentIncidents: totalViolent,
-                NonViolentAnalyses: totalNonViolent,
-                AgainstViolenceAnalyses: textAgainstViolence,
-                NeutralTextAnalyses: textNeutral
-            );
-
-            var videoStats = new VideoStatsDto(
-                TotalAnalyzed: videoTotal,
-                ViolentIncidents: videoViolent,
-                NonViolentAnalyses: videoNonViolent
-            );
-
-            var textStats = new TextStatsDto(
-                TotalAnalyzed: textTotal,
-                ViolentIncidents: textViolent,
-                AgainstViolenceAnalyses: textAgainstViolence,
-                NeutralAnalyses: textNeutral
-            );
-
-            return new MonthlyReportDto(
-                IsMonthlyReportEnabled: user.IsMonthlyReportEnabled,
-                OverallViolencePercentage: violencePercentage,
-                TimeRange: timeRangeText,
-                OverallSummary: overallStats,
-                VideoSummary: videoStats,
-                TextSummary: textStats
+                TotalViolentIncidents: totalViolent,
+                TotalNonViolentAnalyses: videoNonViolent,
+                TotalAgainstViolenceAnalyses: textAgainst,
+                TotalNeutralTextAnalyses: textNeutral,
+                ViolencePercentage: violencePercent,
+                VideoSummary: new VideoSummaryDto(videoLogs.Count, videoViolent, videoNonViolent),
+                TextSummary: new TextSummaryDto(textLogs.Count, textViolent, textAgainst, textNeutral),
+                EnableMonthlyReports: isReportEnabled,
+                DateFrom: thirtyDaysAgo,
+                DateTo: DateTime.UtcNow
             );
         }
 
-        public async Task UpdateReportPreferenceAsync(string userEmail, UpdateReportSettingsDto dto)
+        public async Task<bool> UpdateReportSettingsAsync(string userEmail, UpdateReportSettingsDto dto)
         {
-            var userRepo = _unitOfWork.GetRepository<User, int>();
+            var userRepo = _unitOfWork.GetRepository<User, string>();
+            var user = await userRepo.GetByIdAsync(userEmail);
 
-            var allUsers = await userRepo.GetAllAsync();
-            var user = allUsers.FirstOrDefault(u => u.Email == userEmail);
-
-            if (user == null)
-            {
-                throw new Exception("User account not found.");
-            }
+            if (user == null) return false;
 
             user.IsMonthlyReportEnabled = dto.EnableMonthlyReports;
-
+            userRepo.Update(user);
             await _unitOfWork.SaveChangesAsync();
+
+            return true;
         }
     }
 }

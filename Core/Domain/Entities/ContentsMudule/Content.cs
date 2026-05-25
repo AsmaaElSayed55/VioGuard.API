@@ -1,13 +1,21 @@
-﻿namespace Domain.Entities.ContentsMudule
-{
-    public abstract class Content : BaseEntity<int>
-    {
-        public string URL { get; set; }
-        //public string Type { get; set; } // "Video" or "Text"
-        public DateTime DetectionDate { get; set; }
+﻿using System;
+using Domain.Entities.UserModule;
 
-        // Relationship with User
-        public string UserEmail { get; set; }
-        public User User { get; set; }
+namespace Domain.Entities.ContentsMudule
+{
+    public abstract class Content : BaseEntity<string>
+    {
+        // Your Primary Key (URL Column) mapped in configuration
+        public DateTime DetectionDate { get; set; }
+        public string UserEmail { get; set; } = string.Empty; // FK
+        public string ContentType { get; set; } = string.Empty;
+
+        // Shared auditing metadata properties
+        public DateTime CreatedAt { get; set; }
+        public string? CreatedBy { get; set; }
+        public DateTime? LastModified { get; set; }
+
+        // Navigation property
+        public User? User { get; set; }
     }
 }

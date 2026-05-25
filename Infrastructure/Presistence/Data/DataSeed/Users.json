@@ -1,22 +1,11 @@
 [
   {
-    "FullName": "Alice Smith",
-    "Email": "alice.smith@vioguard.com",
-    "Password": "HashedSecurePassword999!"
-  },
-  {
-    "FullName": "David Miller",
-    "Email": "david.m@gmail.com",
-    "Password": "UserPass776#_Dynamic"
-  },
-  {
-    "FullName": "Sarah Jenkins",
-    "Email": "s.jenkins@academy.org",
-    "Password": "CryptoSecureBypassRoot1"
-  },
-  {
-    "FullName": "Omar Rayan",
-    "Email": "omar.rayan@techcorp.io",
-    "Password": "SafeVioGuardPassword2026"
+    "Email": "john.doe@example.com",
+    "FullName": "John Doe",
+    "Password": "HashedSecurePassword123!",
+    "Id": "USR-001",
+    "CreatedAt": "2026-01-01T00:00:00Z",
+    "IsMonthlyReportEnabled": true
   }
 ]
+  

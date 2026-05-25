@@ -1,56 +1,72 @@
 ﻿using Domain.Contracts;
-using Domain.Entities.ContentsMudule; // Fixed a small typo in the word "ContentsModule" here
 using Domain.Entities.ContentsMudule;
 using Domain.Entities.SystemModule;
+using Domain.Entities.SystemModule.ModelsModule;
 using Domain.Entities.UserModule;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace Presistence.Data
 {
     public class DataSeeding : IDataSeeding
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly JsonSerializerOptions _jsonOptions;
 
         public DataSeeding(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork;
+            _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         }
 
-        // This contains your excellent JSON processing engine
-        public async Task SeedAsync()
+        public async Task SeedDataAsync()
         {
-            var userRepo = _unitOfWork.GetRepository<User, int>();
-            var contentRepo = _unitOfWork.GetRepository<Content, int>();
+            var systemRepo = _unitOfWork.GetRepository<SystemRoot, string>();
+            var modelRepo = _unitOfWork.GetRepository<AIModel, string>();
+            var userRepo = _unitOfWork.GetRepository<User, string>();
+            var contentRepo = _unitOfWork.GetRepository<Content, string>();
+            var historyRepo = _unitOfWork.GetRepository<HistoryRecord, string>();
 
-            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
-            // 1. Seed Users if table is empty
-            var existingUsers = await userRepo.GetAllAsync();
-            if (!existingUsers.Any())
+            // 1. Seed System Roots
+            if (!(await systemRepo.GetAllAsync()).Any())
             {
-                var usersPath = Path.Combine(AppContext.BaseDirectory, "Persistence", "Data", "Seeding", "user.json");
-                if (!File.Exists(usersPath)) usersPath = Path.Combine(AppContext.BaseDirectory, "user.json");
-
-                if (File.Exists(usersPath))
+                var path = ResolvePath("systemroot.json");
+                if (File.Exists(path))
                 {
-                    var usersJson = await File.ReadAllTextAsync(usersPath);
-                    var usersList = JsonSerializer.Deserialize<List<UserSeedModel>>(usersJson, jsonOptions);
+                    var items = JsonSerializer.Deserialize<List<SystemRoot>>(await File.ReadAllTextAsync(path), _jsonOptions);
+                    if (items != null) foreach (var item in items) await systemRepo.AddAsync(item);
+                    await _unitOfWork.SaveChangesAsync();
+                }
+            }
 
-                    if (usersList != null)
+            // 2. Seed AI Models
+            if (!(await modelRepo.GetAllAsync()).Any())
+            {
+                var path = ResolvePath("aimodel.json");
+                if (File.Exists(path))
+                {
+                    var items = JsonSerializer.Deserialize<List<AIModel>>(await File.ReadAllTextAsync(path), _jsonOptions);
+                    if (items != null) foreach (var item in items) await modelRepo.AddAsync(item);
+                    await _unitOfWork.SaveChangesAsync();
+                }
+            }
+
+            // 3. Seed Users
+            if (!(await userRepo.GetAllAsync()).Any())
+            {
+                var path = ResolvePath("user.json");
+                if (File.Exists(path))
+                {
+                    var items = JsonSerializer.Deserialize<List<UserSeedModel>>(await File.ReadAllTextAsync(path), _jsonOptions);
+                    if (items != null)
                     {
-                        foreach (var u in usersList)
+                        foreach (var u in items)
                         {
                             await userRepo.AddAsync(new User
                             {
+                                Id = u.Email, // Assign email directly to the inherited base entity identity key
                                 FullName = u.FullName,
-                                Email = u.Email,
-                                Password = u.Password
+                                Password = u.Password,
+                                UserInternalId = Guid.NewGuid().ToString()[..8]
                             });
                         }
                         await _unitOfWork.SaveChangesAsync();
@@ -58,36 +74,27 @@ namespace Presistence.Data
                 }
             }
 
-            // Refresh our user list tracker to catch newly generated database IDs
+            // 4. Seed Contents
             var usersInDb = await userRepo.GetAllAsync();
-
-            // 2. Seed Contents mapped against User IDs if empty
-            var existingContent = await contentRepo.GetAllAsync();
-            if (!existingContent.Any())
+            if (!(await contentRepo.GetAllAsync()).Any())
             {
-                var contentsPath = Path.Combine(AppContext.BaseDirectory, "Persistence", "Data", "Seeding", "content.json");
-                if (!File.Exists(contentsPath)) contentsPath = Path.Combine(AppContext.BaseDirectory, "content.json");
-
-                if (File.Exists(contentsPath))
+                var path = ResolvePath("content.json");
+                if (File.Exists(path))
                 {
-                    var contentJson = await File.ReadAllTextAsync(contentsPath);
-                    var contentList = JsonSerializer.Deserialize<List<ContentSeedModel>>(contentJson, jsonOptions);
-
-                    if (contentList != null)
+                    var items = JsonSerializer.Deserialize<List<ContentSeedModel>>(await File.ReadAllTextAsync(path), _jsonOptions);
+                    if (items != null)
                     {
-                        foreach (var c in contentList)
+                        foreach (var c in items)
                         {
-                            // Find the user entry in database matching the JSON email identifier
-                            var matchingUser = usersInDb.FirstOrDefault(u => u.Email.Equals(c.UserEmail, StringComparison.OrdinalIgnoreCase));
-                            if (matchingUser == null) continue; // Skip if no user matches
+                            var matchingUser = usersInDb.FirstOrDefault(u => u.Id.Equals(c.UserEmail, StringComparison.OrdinalIgnoreCase));
+                            if (matchingUser == null) continue;
 
                             if (c.Type.Equals("Video", StringComparison.OrdinalIgnoreCase))
                             {
                                 await contentRepo.AddAsync(new VideoContent
                                 {
-                                    URL = c.URL,
-                                    DetectionDate = DateTime.UtcNow.AddDays(-Random.Shared.Next(1, 10)),
-                                    UserEmail = matchingUser.Email,
+                                    Id = c.URL, // Mapped to primary key column URL
+                                    UserEmail = matchingUser.Id,
                                     ViolentPercent = c.ViolentPercent
                                 });
                             }
@@ -95,12 +102,16 @@ namespace Presistence.Data
                             {
                                 await contentRepo.AddAsync(new TextContent
                                 {
-                                    URL = c.URL,
-                                    DetectionDate = DateTime.UtcNow.AddDays(-Random.Shared.Next(1, 10)),
-                                    UserEmail = matchingUser.Email,
+                                    Id = c.URL, // Mapped to primary key column URL
+                                    UserEmail = matchingUser.Id,
                                     textContext = c.TextContext,
-                                    ViolentWords = c.ViolentWords ?? new List<string>(),
-                                    ViolentResult = c.ViolentWords != null && c.ViolentWords.Any()
+
+                                    // 🚀 FIXED: Safely join the list into a clean comma-separated primitive string!
+                                    ViolentWords = c.ViolentWords != null && c.ViolentWords.Any()
+                                     ? string.Join(", ", c.ViolentWords)
+                                     : string.Empty,
+
+                                    ViolentResult = "Analysed" // Your remainder code assignment block...
                                 });
                             }
                         }
@@ -108,13 +119,24 @@ namespace Presistence.Data
                     }
                 }
             }
+
+            // 5. Seed History Records
+            if (!(await historyRepo.GetAllAsync()).Any())
+            {
+                var path = ResolvePath("history.json");
+                if (File.Exists(path))
+                {
+                    var items = JsonSerializer.Deserialize<List<HistoryRecord>>(await File.ReadAllTextAsync(path), _jsonOptions);
+                    if (items != null) foreach (var item in items) await historyRepo.AddAsync(item);
+                    await _unitOfWork.SaveChangesAsync();
+                }
+            }
         }
 
-        // Redirect this method to SeedAsync() so your app never crashes regardless of which 
-        // method signature your IDataSeeding interface uses to trigger execution.
-        public async Task SeedDataAsync()
+        private string ResolvePath(string file)
         {
-            await SeedAsync();
+            var primaryPath = Path.Combine(AppContext.BaseDirectory, "Persistence", "Data", "Seeding", file);
+            return File.Exists(primaryPath) ? primaryPath : Path.Combine(AppContext.BaseDirectory, file);
         }
     }
 

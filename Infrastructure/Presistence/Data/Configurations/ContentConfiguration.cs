@@ -1,33 +1,26 @@
-﻿using Domain.Entities.ContentsMudule;
+﻿using Domain.Entities.ContentsMudule; // Matches your solution spelling namespace
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Presistence.Data.Configurations
 {
-    internal class ContentConfiguration : IEntityTypeConfiguration<Content>
+    public class ContentConfiguration : IEntityTypeConfiguration<Content>
     {
         public void Configure(EntityTypeBuilder<Content> builder)
         {
-            builder.HasKey(c => c.URL);
-            builder.Property(c => c.DetectionDate).HasDefaultValueSql("GETUTCDATE()");
+            // 1. Base Table Configurations
+            builder.ToTable("Contents");
 
-            // TPH Configuration
+            builder.HasKey(c => c.Id);
+            builder.Property(c => c.Id).HasColumnName("URL");
+
+            builder.Property(c => c.DetectionDate)
+                   .HasDefaultValueSql("GETUTCDATE()");
+
+            // 2. Table-Per-Hierarchy (TPH) Discriminator Definition
             builder.HasDiscriminator<string>("ContentType")
                    .HasValue<TextContent>("Text")
                    .HasValue<VideoContent>("Video");
-
-            builder.ToTable("Contents");
-
-
-            // Relationship to User
-            builder.HasOne(c => c.User)
-                   .WithMany(u => u.Contents)
-                   .HasForeignKey(c => c.UserEmail);
-
         }
     }
 }
