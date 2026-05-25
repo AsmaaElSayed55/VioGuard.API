@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Presentation.Controllers;
 using Presistence.Data;
 using Presistence.Repositories;
 using Services;
@@ -21,7 +22,8 @@ namespace VioGuard.API
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
-            builder.Services.AddControllers();
+            builder.Services.AddControllers()
+                .AddApplicationPart(typeof(ReportController).Assembly);
             builder.Services.AddEndpointsApiExplorer();
 
 
@@ -68,7 +70,8 @@ namespace VioGuard.API
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             builder.Services.AddScoped<IReportService, ReportService>();
-  
+            builder.Services.AddScoped<IHistoryService, HistoryService>();
+
             // Architecture Infrastructure mappings
             builder.Services.AddAutoMapper(cfg => { }, typeof(ServicesAssemblyReference).Assembly);
             builder.Services.AddScoped<IServiceManager, ServiceManager>();
@@ -114,7 +117,6 @@ namespace VioGuard.API
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
-                app.MapOpenApi();
             }
 
             app.UseHttpsRedirection();
