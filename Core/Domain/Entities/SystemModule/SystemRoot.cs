@@ -6,6 +6,6 @@
 
         // Navigation Properties
         public ICollection<History> Histories { get; set; } = new List<History>();
-        public ICollection<Model> Models { get; set; } = new List<Model>();
+        public ICollection<AIModel> Models { get; set; } = new List<AIModel>();
     }
 }

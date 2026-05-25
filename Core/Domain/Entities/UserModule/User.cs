@@ -8,5 +8,6 @@
 
         // Navigation properties
         public ICollection<Content> Contents { get; set; }
+        public bool IsMonthlyReportEnabled { get; set; } = true;
     }
 }

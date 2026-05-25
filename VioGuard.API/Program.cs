@@ -1,14 +1,16 @@
-
 using Domain.Contracts;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using Presistence.Data;
 using Presistence.Repositories;
 using Services;
 using Services.Abstraction.Contracts;
 using Services.Implementations;
-using System.Reflection.Metadata;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using System;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace VioGuard.API
 {
@@ -19,38 +21,92 @@ namespace VioGuard.API
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
-
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
 
 
-            builder.Services.AddDbContext<VioGuardDbContext>(options =>
+            builder.Services.AddSwaggerGen(options =>
             {
-            options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+                options.SwaggerDoc("v1", new OpenApiInfo { Title = "VioGuard API", Version = "v1" });
+
+                options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'",
+                    Name = "Authorization",
+                    In = ParameterLocation.Header,
+                    Type = SecuritySchemeType.ApiKey,
+                    Scheme = "Bearer"
+                });
+
+                //options.AddSecurityRequirement(new OpenApiSecurityRequirement
+                //{
+                //    {
+                //        new OpenApiSecurityScheme
+                //        {
+                //            Reference = new OpenApiReference
+                //            {
+                //                Type = ReferenceType.SecurityScheme,
+                //                Id = "Bearer"
+                //            }
+                //        },
+                //        Array.Empty<string>()
+                //    }
+                //});
             });
 
+            // Database Context Configuration
+            builder.Services.AddDbContext<VioGuardDbContext>(options =>
+            {
+                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+            });
+
+            builder.Services.AddScoped<DbContext>(provider => provider.GetRequiredService<VioGuardDbContext>());
+
+            // Data layer registration
             builder.Services.AddScoped<IDataSeeding, DataSeeding>();
+            builder.Services.AddScoped(typeof(IGenericRepository<,>), typeof(GenericRepository<,>));
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+            builder.Services.AddScoped<IReportService, ReportService>();
+  
+            // Architecture Infrastructure mappings
             builder.Services.AddAutoMapper(cfg => { }, typeof(ServicesAssemblyReference).Assembly);
             builder.Services.AddScoped<IServiceManager, ServiceManager>();
 
+
+            //builder.Services.AddAuthentication(options =>
+            //{
+            //    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            //    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            //})
+            //.AddJwtBearer(options =>
+            //{
+            //    options.TokenValidationParameters = new TokenValidationParameters
+            //    {
+            //        ValidateIssuer = true,
+            //        ValidateAudience = true,
+            //        ValidateLifetime = true,
+            //        ValidateIssuerSigningKey = true,
+            //        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            //        ValidAudience = builder.Configuration["Jwt:Audience"],
+            //        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "YourSuperSecretBackupKey123!"))
+            //    };
+            //});
+
             var app = builder.Build();
 
+            // Run database migrations and seed operational tables automatically
             using (var scope = app.Services.CreateScope())
             {
                 var services = scope.ServiceProvider;
                 try
                 {
                     var seeder = services.GetRequiredService<IDataSeeding>();
-                    // This triggers Migrate() inside your class to create the DB
                     await seeder.SeedDataAsync();
                 }
                 catch (Exception ex)
                 {
-                    // Log the error if seeding fails (check your Console window!)
-                    Console.WriteLine($"An error occurred: {ex.Message}");
+                    Console.WriteLine($"An error occurred during database seeding: {ex.Message}");
                 }
             }
 
@@ -63,9 +119,11 @@ namespace VioGuard.API
 
             app.UseHttpsRedirection();
 
+            // Authentication must ALWAYS execute right before Authorization middleware
+            app.UseAuthentication();
+            app.UseAuthorization();
 
             app.MapControllers();
-
             app.Run();
         }
     }
