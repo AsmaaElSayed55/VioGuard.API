@@ -1,7 +1,7 @@
-1. Project Overview :
+1.Project Overview :
 VioGuard API is a backend system designed to ensure digital safety by identifying and filtering out violent content. It provides automated text and video moderation services, leveraging targeted analytical models to process media submissions. The application tracks user history, evaluates severity levels, and generates detailed statistical safety reports.
 
-2. Core Features :
+2.Core Features :
 2.1 Multi-Format Content Handling: Seamless ingestion and separate processing tracks for text blocks and video streams.
 
 2.2 Polymorphic Detection Engines: Distinct AI or programmatic models optimized specifically to find violent terminology in text or flag violent visual sequences in videos.
@@ -10,7 +10,7 @@ VioGuard API is a backend system designed to ensure digital safety by identifyin
 
 2.4 User Auditing & History Logging: Full transparency for registered users to track their historical uploads, processing dates, and detection results.
 
-3. Architecture & Class Breakdown
+3.Architecture & Class Breakdown
 The system is structured around several distinct components working in harmony:
 
 3.1 User Management Layer :
