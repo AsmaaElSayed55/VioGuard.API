@@ -1,0 +1,20 @@
+[
+  {
+    "Id": "MDL-TXT-01",
+    "Name": "BERT-Violence-Linguistic",
+    "SystemId": "SYS-01",
+    "ModelType": "Text Analysis",
+    "Framework": "PyTorch Transformers",
+    "AccuracyThreshold": 0.92,
+    "CreatedAt": "2026-01-01T00:00:00Z"
+  },
+  {
+    "Id": "MDL-VID-01",
+    "Name": "YOLO-v8-Action-Aggression",
+    "SystemId": "SYS-01",
+    "ModelType": "Video Frame Classification",
+    "Framework": "Ultralytics Engine",
+    "AccuracyThreshold": 0.89,
+    "CreatedAt": "2026-01-01T00:00:00Z"
+  }
+]

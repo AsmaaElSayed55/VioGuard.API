@@ -2,8 +2,8 @@
 {
     public class TextContent : Content
     {
-        public bool ViolentResult { get; set; }
-        public string textContext { get; set; }
-        public List<string> ViolentWords { get; set; }
+        public string textContext { get; set; } = string.Empty;
+        public string ViolentResult { get; set; } = string.Empty;
+        public string ViolentWords { get; set; } = string.Empty;
     }
 }

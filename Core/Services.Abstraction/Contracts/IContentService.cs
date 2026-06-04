@@ -1,11 +1,13 @@
-﻿using Shared.Dtos;
+﻿using Shared.Dtos.AI_Models;
+using Shared.Dtos.Content;
+using Shared.Dtos.History;
+using Shared.Dtos.Report;
 namespace Services.Abstraction.Contracts
 {
     public interface IContentService
     {
-        Task ProcessTextContentAsync(UploadTextDto dto);
-        Task ProcessVideoContentAsync(UploadVideoDto dto);
-        Task<ReportResultDto> GetUserReportAsync(string email);
-        Task<IEnumerable<HistoryResultDto>> GetUserHistoryAsync(string email);
+        Task<IEnumerable<ContentDto>> GetUserContentsAsync(string userEmail);
+        Task<TextContentDto> AddTextContentAsync(CreateTextContentDto textDto);
+        Task<VideoContentDto> AddVideoContentAsync(CreateVideoContentDto videoDto);
     }
 }

@@ -1,36 +1,35 @@
 ﻿using AutoMapper;
 using Domain.Entities.ContentsMudule;
 using Domain.Entities.UserModule;
-using Shared.Dtos;
+using Shared.Dtos.AI_Models;
+using Shared.Dtos.Content;
 using System;
 
 namespace Services.MappingProfiles
 {
-    public class ContentProfile : Profile
+    public class ContentMappingProfile : Profile
     {
-        public ContentProfile()
+        public class ContentProfile : Profile
         {
-            // Text Content Map
-            CreateMap<UploadTextDto, TextContent>()
-                .ForMember(dest => dest.URL, opt => opt.MapFrom(src => src.Url))
-                .ForMember(dest => dest.textContext, opt => opt.MapFrom(src => src.TextContext))
-                .ForMember(dest => dest.DetectionDate, opt => opt.MapFrom(src => DateTime.UtcNow))
-                .ForMember(dest => dest.Id, opt => opt.Ignore())
-                .ForMember(dest => dest.UserEmail, opt => opt.Ignore())
-                .ForMember(dest => dest.User, opt => opt.Ignore())
-                .ForMember(dest => dest.ViolentResult, opt => opt.Ignore())
-                .ForMember(dest => dest.ViolentWords, opt => opt.Ignore());
+            public ContentProfile()
+            {
+                // Base Mapping
+                CreateMap<Content, ContentDto>()
+                    .ForMember(dest => dest.URL, opt => opt.MapFrom(src => src.Id))
+                    .Include<TextContent, TextContentDto>()
+                    .Include<VideoContent, VideoContentDto>();
 
-            // Video Content Map
-            CreateMap<UploadVideoDto, VideoContent>()
-                .ForMember(dest => dest.URL, opt => opt.MapFrom(src => src.Url))
-                .ForMember(dest => dest.ViolentPercent, opt => opt.MapFrom(src => src.ViolentPercent))
-                .ForMember(dest => dest.DetectionDate, opt => opt.MapFrom(src => DateTime.UtcNow))
-                .ForMember(dest => dest.Id, opt => opt.Ignore())
-                .ForMember(dest => dest.UserEmail, opt => opt.Ignore())
-                .ForMember(dest => dest.User, opt => opt.Ignore());
+                // Subclass Mappings
+                CreateMap<TextContent, TextContentDto>();
+                CreateMap<VideoContent, VideoContentDto>();
 
-            // History Maps (Keep your existing history mapping code here unchanged)
+                // Request mappings
+                CreateMap<CreateTextContentDto, TextContent>()
+                    .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.URL));
+
+                CreateMap<CreateVideoContentDto, VideoContent>()
+                    .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.URL));
+            }
         }
     }
 }

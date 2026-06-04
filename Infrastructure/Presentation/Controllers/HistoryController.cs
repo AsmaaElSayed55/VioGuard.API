@@ -1,40 +1,74 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Services.Abstraction.Contracts;
-using Shared.Dtos;
+using Shared.Dtos.History;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+
 namespace Presentation.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class HistoryController : ControllerBase
     {
-        private readonly IHistoryService _historyService;
-
-        public HistoryController(IHistoryService historyService)
+        public HistoryController()
         {
-            _historyService = historyService;
         }
 
-        [HttpGet("all")]
-        public async Task<IActionResult> GetGlobalLogs() 
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<HistoryListItemDto>>> GetUserHistory([FromQuery] string type = "All")
         {
-            var logs = await _historyService.GetAllHistoriesAsync();
-            return Ok(logs);
+            var items = new List<HistoryListItemDto>
+            {
+                new HistoryListItemDto("1", "youtube.com/watch?v=dQw...", "Video", "2 hours ago", "Safe"),
+                new HistoryListItemDto("2", "reddit.com/r/technology/...", "Text", "5 hours ago", "Safe"),
+                new HistoryListItemDto("3", "vimeo.com/channels/...", "Video", "Yesterday", "Flagged")
+            };
+
+            if (!string.Equals(type, "All", StringComparison.OrdinalIgnoreCase))
+            {
+                items = items.Where(i => string.Equals(i.ContentType, type, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+
+            return Ok(items);
         }
 
-        [HttpGet("user/{email}")]
-        public async Task<IActionResult> GetUserLogs(string email)
+        [HttpGet("{id}/details")]
+        public async Task<ActionResult<HistoryDetailsDto>> GetDetails(string id)
         {
-            var userLogs = await _historyService.GetUserHistoriesAsync(email);
-            return Ok(userLogs);
+            if (id == "3")
+            {
+                return Ok(new HistoryDetailsDto(
+                    "3",
+                    DateTime.UtcNow.AddDays(-1),
+                    "Video Stream (MP4)",
+                    true,
+                    "https://storage.cdn.media/v/prod-high.mp4",
+                    "Violent Content",
+                    "Red",
+                    new List<DetailFindingDto> { new DetailFindingDto("Identified high-impact physical actions in the video.", true) }
+                ));
+            }
+
+            return Ok(new HistoryDetailsDto(
+                "2",
+                DateTime.UtcNow.AddHours(-5),
+                "Text",
+                true,
+                "https://storage.cdn.media/t/prod-high.txt",
+                "Against Violent Content",
+                "Green",
+                new List<DetailFindingDto> { new DetailFindingDto("Encourages safety and peace as a priority.", false) }
+            ));
         }
 
-        [HttpPost("log")]
-        public async Task<IActionResult> CreateLog([FromBody] CreateHistoryDto dto)
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteRecord(string id)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
-
-            await _historyService.CreateLogAsync(dto);
-            return Ok(new { status = "Success", message = "System audit footprint generated." });
+            return NoContent();
         }
     }
 }

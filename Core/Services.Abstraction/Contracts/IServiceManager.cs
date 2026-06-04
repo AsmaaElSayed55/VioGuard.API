@@ -1,14 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Services.Abstraction.Contracts
+﻿namespace Services.Abstraction.Contracts
 {
     public interface IServiceManager
     {
-        public IHistoryService HistoryService { get; }
-
+        IUserService UserService { get; }
+        IContentService ContentService { get; }
+        ISystemService SystemService { get; }
+        IReportService ReportService { get; }
     }
 }

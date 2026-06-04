@@ -1,7 +1,5 @@
 using Domain.Contracts;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Presentation.Controllers;
 using Presistence.Data;
@@ -9,10 +7,6 @@ using Presistence.Repositories;
 using Services;
 using Services.Abstraction.Contracts;
 using Services.Implementations;
-using System;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace VioGuard.API
 {
     public class Program
@@ -68,12 +62,16 @@ namespace VioGuard.API
             builder.Services.AddScoped<IDataSeeding, DataSeeding>();
             builder.Services.AddScoped(typeof(IGenericRepository<,>), typeof(GenericRepository<,>));
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+            builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<IContentService, ContentService>();
+            builder.Services.AddScoped<ISystemService, SystemService>();
 
             builder.Services.AddScoped<IReportService, ReportService>();
             builder.Services.AddScoped<IHistoryService, HistoryService>();
 
             // Architecture Infrastructure mappings
             builder.Services.AddAutoMapper(cfg => { }, typeof(ServicesAssemblyReference).Assembly);
+            // Register the Service Manager which handles all services under one hood
             builder.Services.AddScoped<IServiceManager, ServiceManager>();
 
 
@@ -122,10 +120,12 @@ namespace VioGuard.API
             app.UseHttpsRedirection();
 
             // Authentication must ALWAYS execute right before Authorization middleware
-            app.UseAuthentication();
-            app.UseAuthorization();
+            //app.UseAuthentication();
+            //app.UseAuthorization();
 
+            
             app.MapControllers();
+
             app.Run();
         }
     }
