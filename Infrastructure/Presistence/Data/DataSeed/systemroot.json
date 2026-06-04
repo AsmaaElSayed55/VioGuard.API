@@ -1,0 +1,14 @@
+[
+  {
+    "Id": "SYS-001",
+    "Name": "VioGuard Core Configuration",
+    "Version": "1.0.0",
+    "IsActive": true
+  },
+  {
+    "Id": "SYS-002",
+    "Name": "VioGuard Analytics Engine",
+    "Version": "1.2.0",
+    "IsActive": true
+  }
+]

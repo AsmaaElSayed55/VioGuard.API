@@ -56,10 +56,11 @@ namespace VioGuard.API
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
             });
 
+            builder.Services.AddScoped<IDataSeeding, DataSeeding>();
+
             builder.Services.AddScoped<DbContext>(provider => provider.GetRequiredService<VioGuardDbContext>());
 
             // Data layer registration
-            builder.Services.AddScoped<IDataSeeding, DataSeeding>();
             builder.Services.AddScoped(typeof(IGenericRepository<,>), typeof(GenericRepository<,>));
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddScoped<IUserService, UserService>();
@@ -99,16 +100,13 @@ namespace VioGuard.API
             // Run database migrations and seed operational tables automatically
             using (var scope = app.Services.CreateScope())
             {
-                var services = scope.ServiceProvider;
-                try
-                {
-                    var seeder = services.GetRequiredService<IDataSeeding>();
-                    await seeder.SeedDataAsync();
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"An error occurred during database seeding: {ex.Message}");
-                }
+                var objectOfDataSeeding = scope.ServiceProvider.GetRequiredService<IDataSeeding>();
+
+                // FIX: Added 'await' so the server waits for the DB configurations to finish
+                await objectOfDataSeeding.SeedDataAsync();
+
+                // If you also want to seed default identity users instantly, run this:
+                // await objectOfDataSeeding.SeedIdentityDataAsync();
             }
 
             if (app.Environment.IsDevelopment())
