@@ -27,21 +27,27 @@ namespace Presistence.Data
             var historyRepo = _unitOfWork.GetRepository<HistoryRecord, string>();
 
             // 1. Seed System Roots
+            // 1. Seed System Roots
             if (!(await systemRepo.GetAllAsync()).Any())
             {
-                var path = ResolvePath("systemroot.json");
+                // 🚀 FIX: Removed File.ReadAllText so 'path' holds the file location, not the file contents!
+                var path = "..\\Infrastructure\\Presistence\\Data\\DataSeed\\systemroot.json";
+
                 if (File.Exists(path))
                 {
                     var items = JsonSerializer.Deserialize<List<SystemRoot>>(await File.ReadAllTextAsync(path), _jsonOptions);
-                    if (items != null) foreach (var item in items) await systemRepo.AddAsync(item);
-                    await _unitOfWork.SaveChangesAsync();
+                    if (items != null)
+                    {
+                        foreach (var item in items) await systemRepo.AddAsync(item);
+                        await _unitOfWork.SaveChangesAsync();
+                    }
                 }
             }
 
             // 2. Seed AI Models
             if (!(await modelRepo.GetAllAsync()).Any())
             {
-                var path = ResolvePath("aimodel.json");
+                var path = "..\\Infrastructure\\Presistence\\Data\\DataSeed\\AIModels.json";
                 if (File.Exists(path))
                 {
                     var items = JsonSerializer.Deserialize<List<AIModel>>(await File.ReadAllTextAsync(path), _jsonOptions);
@@ -53,23 +59,38 @@ namespace Presistence.Data
             // 3. Seed Users
             if (!(await userRepo.GetAllAsync()).Any())
             {
-                var path = ResolvePath("user.json");
-                if (File.Exists(path))
+                // 3. Seed Users
+                var userPath = "..\\Infrastructure\\Presistence\\Data\\DataSeed\\user.json";
+                if (File.Exists(userPath))
                 {
-                    var items = JsonSerializer.Deserialize<List<UserSeedModel>>(await File.ReadAllTextAsync(path), _jsonOptions);
+                    var items = JsonSerializer.Deserialize<List<UserSeedModel>>(await File.ReadAllTextAsync(userPath), _jsonOptions);
                     if (items != null)
                     {
+                        // 1. Get all users currently sitting in the database
+                        var existingUsers = await userRepo.GetAllAsync();
+                        var existingEmails = existingUsers.Select(u => u.Id).ToList();
+
+                        // 2. Track what we add right now (prevents duplicates inside the JSON file itself)
+                        var newlyAddedEmails = new HashSet<string>();
+
                         foreach (var u in items)
                         {
-                            await userRepo.AddAsync(new User
+                            // 3. ONLY add the user if they don't exist in the DB AND haven't been added in this loop yet
+                            if (!existingEmails.Contains(u.Email) && !newlyAddedEmails.Contains(u.Email))
                             {
-                           
-                                Id = u.Email,
-                                FullName = u.FullName,
-                                Password = u.Password,
-                                UserInternalId = Guid.NewGuid().ToString()[..8]
-                            });
+                                await userRepo.AddAsync(new User
+                                {
+                                    Id = u.Email,
+                                    FullName = u.FullName,
+                                    Password = u.Password,
+                                    UserInternalId = Guid.NewGuid().ToString()[..8]
+                                });
+
+                                newlyAddedEmails.Add(u.Email); // Mark as added
+                            }
                         }
+
+                        // 4. Safely save changes without primary key conflicts
                         await _unitOfWork.SaveChangesAsync();
                     }
                 }
@@ -79,7 +100,7 @@ namespace Presistence.Data
             var usersInDb = await userRepo.GetAllAsync();
             if (!(await contentRepo.GetAllAsync()).Any())
             {
-                var path = ResolvePath("content.json");
+                var path = "..\\Infrastructure\\Presistence\\Data\\DataSeed\\Content.json";
                 if (File.Exists(path))
                 {
                     var items = JsonSerializer.Deserialize<List<ContentSeedModel>>(await File.ReadAllTextAsync(path), _jsonOptions);
@@ -125,7 +146,7 @@ namespace Presistence.Data
             // 5. Seed History Records
             if (!(await historyRepo.GetAllAsync()).Any())
             {
-                var path = ResolvePath("history.json");
+                var path = "..\\Infrastructure\\Presistence\\Data\\DataSeed\\History.json";
                 if (File.Exists(path))
                 {
                     var items = JsonSerializer.Deserialize<List<HistoryRecord>>(await File.ReadAllTextAsync(path), _jsonOptions);
@@ -135,11 +156,11 @@ namespace Presistence.Data
             }
         }
 
-        private string ResolvePath(string file)
-        {
-            var primaryPath = Path.Combine(AppContext.BaseDirectory, "Persistence", "Data", "Seeding", file);
-            return File.Exists(primaryPath) ? primaryPath : Path.Combine(AppContext.BaseDirectory, file);
-        }
+        //private string ResolvePath(string file)
+        //{
+        //    var primaryPath = Path.Combine(AppContext.BaseDirectory, "Persistence", "Data", "Seeding", file);
+        //    return File.Exists(primaryPath) ? primaryPath : Path.Combine(AppContext.BaseDirectory, file);
+        //}
     }
 
     public class UserSeedModel

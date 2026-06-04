@@ -1,11 +1,12 @@
 [
   {
-    "Email": "john.doe@example.com",
-    "FullName": "John Doe",
-    "Password": "HashedSecurePassword123!",
-    "Id": "USR-001",
-    "CreatedAt": "2026-01-01T00:00:00Z",
-    "IsMonthlyReportEnabled": true
+    "FullName": "System Administrator",
+    "Email": "admin@vioguard.com",
+    "Password": "SecureAdminPassword123!"
+  },
+  {
+    "FullName": "Test Analyst",
+    "Email": "analyst@vioguard.com",
+    "Password": "AnalystPassword123!"
   }
 ]
-  

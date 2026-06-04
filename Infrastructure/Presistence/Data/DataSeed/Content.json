@@ -1,26 +1,24 @@
 [
   {
     "Id": "CNT-01",
-    "URL": "https://storage.cdn.media/v/4921-prod-high.mp4",
-    "DetectionDate": "2026-05-25T09:41:00Z",
-    "UserEmail": "john.doe@example.com",
-    "ContentType": "Video Stream (MP4)",
-    "ViolentResult": "Violent Content",
-    "textContext": "Frames 120-180 display physical aggression markers.",
-    "ViolentWords": "Physical Attack, Strike",
-    "ViolentPercent": 84.0,
-    "CreatedAt": "2026-05-25T09:41:00Z"
+    "URL": "https://storage.cdn.media/v/sample-video-1.mp4",
+    "Type": "Video",
+    "UserEmail": "admin@vioguard.com",
+    "ViolentPercent": 85.5,
+    "TextContext": "",
+    "ViolentWords": []
   },
   {
     "Id": "CNT-02",
-    "URL": "https://storage.cdn.media/t/4451-prod-high.txt",
-    "DetectionDate": "2026-05-25T10:15:00Z",
-    "UserEmail": "john.doe@example.com",
-    "ContentType": "Text",
-    "ViolentResult": "Against Violent Content",
-    "textContext": "Encourages safety and peace as a priority.",
-    "ViolentWords": "None",
-    "ViolentPercent": 0.0,
-    "CreatedAt": "2026-05-25T10:15:00Z"
+    "URL": "https://storage.cdn.media/t/sample-text-1.txt",
+    "Type": "Text",
+    "UserEmail": "analyst@vioguard.com",
+    "ViolentPercent": 0,
+    "TextContext": "This text contains aggressive semantics regarding an assault with a weapon.",
+    "ViolentWords": [
+      "aggressive",
+      "assault",
+      "weapon"
+    ]
   }
 ]
