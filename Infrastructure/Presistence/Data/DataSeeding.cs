@@ -3,6 +3,8 @@ using Domain.Entities.ContentsMudule;
 using Domain.Entities.SystemModule;
 using Domain.Entities.SystemModule.ModelsModule;
 using Domain.Entities.UserModule;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
 namespace Presistence.Data
@@ -10,11 +12,18 @@ namespace Presistence.Data
     public class DataSeeding : IDataSeeding
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IHostEnvironment _hostEnvironment;
+        private readonly ILogger<DataSeeding> _logger;
         private readonly JsonSerializerOptions _jsonOptions;
 
-        public DataSeeding(IUnitOfWork unitOfWork)
+        public DataSeeding(
+            IUnitOfWork unitOfWork,
+            IHostEnvironment hostEnvironment,
+            ILogger<DataSeeding> logger)
         {
             _unitOfWork = unitOfWork;
+            _hostEnvironment = hostEnvironment;
+            _logger = logger;
             _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         }
 
@@ -26,141 +35,229 @@ namespace Presistence.Data
             var contentRepo = _unitOfWork.GetRepository<Content, string>();
             var historyRepo = _unitOfWork.GetRepository<HistoryRecord, string>();
 
-            // 1. Seed System Roots
-            // 1. Seed System Roots
-            if (!(await systemRepo.GetAllAsync()).Any())
-            {
-                // 🚀 FIX: Removed File.ReadAllText so 'path' holds the file location, not the file contents!
-                var path = "..\\Infrastructure\\Presistence\\Data\\DataSeed\\systemroot.json";
+            await SeedSystemRootsAsync(systemRepo);
+            await SeedAIModelsAsync(modelRepo);
+            await SeedUsersAsync(userRepo);
+            await SeedContentsAsync(userRepo, contentRepo);
+            await SeedHistoryAsync(historyRepo);
+        }
 
-                if (File.Exists(path))
+        private async Task SeedSystemRootsAsync(IGenericRepository<SystemRoot, string> systemRepo)
+        {
+            if (await systemRepo.AnyAsync())
+                return;
+
+            var path = ResolveSeedFile("systemroot.json");
+            if (path is null)
+                return;
+
+            var items = await DeserializeAsync<List<SystemRoot>>(path);
+            if (items is null || items.Count == 0)
+                return;
+
+            foreach (var item in items)
+                await systemRepo.AddAsync(item);
+
+            await _unitOfWork.SaveChangesAsync();
+            _logger.LogInformation("Seeded {Count} system roots.", items.Count);
+        }
+
+        private async Task SeedAIModelsAsync(IGenericRepository<AIModel, string> modelRepo)
+        {
+            if (await modelRepo.AnyAsync())
+                return;
+
+            var path = ResolveSeedFile("ML_Models.json");
+            if (path is null)
+                return;
+
+            var items = await DeserializeAsync<List<AIModelSeedModel>>(path);
+            if (items is null || items.Count == 0)
+                return;
+
+            foreach (var m in items)
+            {
+                await modelRepo.AddAsync(new AIModel
                 {
-                    var items = JsonSerializer.Deserialize<List<SystemRoot>>(await File.ReadAllTextAsync(path), _jsonOptions);
-                    if (items != null)
+                    Id = m.Id,
+                    Name = m.Name,
+                    SystemId = m.SystemId,
+                    ModelType = m.ModelType,
+                    Framework = m.Framework,
+                    AccuracyThreshold = m.AccuracyThreshold
+                });
+            }
+
+            await _unitOfWork.SaveChangesAsync();
+            _logger.LogInformation("Seeded {Count} AI models.", items.Count);
+        }
+
+        private async Task SeedUsersAsync(IGenericRepository<User, string> userRepo)
+        {
+            if (await userRepo.AnyAsync())
+                return;
+
+            var path = ResolveSeedFile("Users.json");
+            if (path is null)
+                return;
+
+            var items = await DeserializeAsync<List<UserSeedModel>>(path);
+            if (items is null || items.Count == 0)
+                return;
+
+            var newlyAddedEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var u in items)
+            {
+                if (string.IsNullOrWhiteSpace(u.Email) || !newlyAddedEmails.Add(u.Email))
+                    continue;
+
+                await userRepo.AddAsync(new User
+                {
+                    Id = u.Email,
+                    FullName = u.FullName,
+                    Password = u.Password,
+                    UserInternalId = Guid.NewGuid().ToString()[..8]
+                });
+            }
+
+            await _unitOfWork.SaveChangesAsync();
+            _logger.LogInformation("Seeded {Count} users.", newlyAddedEmails.Count);
+        }
+
+        private async Task SeedContentsAsync(
+            IGenericRepository<User, string> userRepo,
+            IGenericRepository<Content, string> contentRepo)
+        {
+            if (await contentRepo.AnyAsync())
+                return;
+
+            var path = ResolveSeedFile("Content.json");
+            if (path is null)
+                return;
+
+            var items = await DeserializeAsync<List<ContentSeedModel>>(path);
+            if (items is null || items.Count == 0)
+                return;
+
+            var usersInDb = (await userRepo.GetAllAsync(asNoTracking: true)).ToList();
+            var seeded = 0;
+
+            foreach (var c in items)
+            {
+                var matchingUser = usersInDb.FirstOrDefault(u =>
+                    u.Id.Equals(c.UserEmail, StringComparison.OrdinalIgnoreCase));
+
+                if (matchingUser is null)
+                {
+                    _logger.LogWarning(
+                        "Skipping content {ContentId}: user {UserEmail} not found.",
+                        c.Id,
+                        c.UserEmail);
+                    continue;
+                }
+
+                if (c.Type.Equals("Video", StringComparison.OrdinalIgnoreCase))
+                {
+                    await contentRepo.AddAsync(new VideoContent
                     {
-                        foreach (var item in items) await systemRepo.AddAsync(item);
-                        await _unitOfWork.SaveChangesAsync();
-                    }
+                        Id = c.Id,
+                        URL = c.URL,
+                        ContentType = "Video",
+                        UserEmail = matchingUser.Id,
+                        ViolentPercent = c.ViolentPercent
+                    });
+                    seeded++;
                 }
-            }
-
-            // 2. Seed AI Models
-            if (!(await modelRepo.GetAllAsync()).Any())
-            {
-                var path = "..\\Infrastructure\\Presistence\\Data\\DataSeed\\AIModels.json";
-                if (File.Exists(path))
+                else if (c.Type.Equals("Text", StringComparison.OrdinalIgnoreCase))
                 {
-                    var items = JsonSerializer.Deserialize<List<AIModel>>(await File.ReadAllTextAsync(path), _jsonOptions);
-                    if (items != null) foreach (var item in items) await modelRepo.AddAsync(item);
-                    await _unitOfWork.SaveChangesAsync();
-                }
-            }
-
-            // 3. Seed Users
-            if (!(await userRepo.GetAllAsync()).Any())
-            {
-                // 3. Seed Users
-                var userPath = "..\\Infrastructure\\Presistence\\Data\\DataSeed\\user.json";
-                if (File.Exists(userPath))
-                {
-                    var items = JsonSerializer.Deserialize<List<UserSeedModel>>(await File.ReadAllTextAsync(userPath), _jsonOptions);
-                    if (items != null)
+                    await contentRepo.AddAsync(new TextContent
                     {
-                        // 1. Get all users currently sitting in the database
-                        var existingUsers = await userRepo.GetAllAsync();
-                        var existingEmails = existingUsers.Select(u => u.Id).ToList();
-
-                        // 2. Track what we add right now (prevents duplicates inside the JSON file itself)
-                        var newlyAddedEmails = new HashSet<string>();
-
-                        foreach (var u in items)
-                        {
-                            // 3. ONLY add the user if they don't exist in the DB AND haven't been added in this loop yet
-                            if (!existingEmails.Contains(u.Email) && !newlyAddedEmails.Contains(u.Email))
-                            {
-                                await userRepo.AddAsync(new User
-                                {
-                                    Id = u.Email,
-                                    FullName = u.FullName,
-                                    Password = u.Password,
-                                    UserInternalId = Guid.NewGuid().ToString()[..8]
-                                });
-
-                                newlyAddedEmails.Add(u.Email); // Mark as added
-                            }
-                        }
-
-                        // 4. Safely save changes without primary key conflicts
-                        await _unitOfWork.SaveChangesAsync();
-                    }
+                        Id = c.Id,
+                        URL = c.URL,
+                        ContentType = "Text",
+                        UserEmail = matchingUser.Id,
+                        textContext = c.TextContext,
+                        ViolentWords = c.ViolentWords is { Count: > 0 }
+                            ? string.Join(", ", c.ViolentWords)
+                            : string.Empty,
+                        ViolentResult = "Analysed"
+                    });
+                    seeded++;
                 }
             }
 
-            // 4. Seed Contents
-            var usersInDb = await userRepo.GetAllAsync();
-            if (!(await contentRepo.GetAllAsync()).Any())
+            if (seeded > 0)
             {
-                var path = "..\\Infrastructure\\Presistence\\Data\\DataSeed\\Content.json";
-                if (File.Exists(path))
-                {
-                    var items = JsonSerializer.Deserialize<List<ContentSeedModel>>(await File.ReadAllTextAsync(path), _jsonOptions);
-                    if (items != null)
-                    {
-                        foreach (var c in items)
-                        {
-                            var matchingUser = usersInDb.FirstOrDefault(u => u.Id.Equals(c.UserEmail, StringComparison.OrdinalIgnoreCase));
-                            if (matchingUser == null) continue;
-
-                            if (c.Type.Equals("Video", StringComparison.OrdinalIgnoreCase))
-                            {
-                                await contentRepo.AddAsync(new VideoContent
-                                {
-                                    // 💡 FIX: Use c.Id (the "CNT-01" value) instead of forcing the URL string as the ID!
-                                    Id = c.Id,
-                                    URL = c.URL, // Ensure your VideoContent entity has a separate URL property!
-                                    UserEmail = matchingUser.Id,
-                                    ViolentPercent = c.ViolentPercent
-                                });
-                            }
-                            else if (c.Type.Equals("Text", StringComparison.OrdinalIgnoreCase))
-                            {
-                                await contentRepo.AddAsync(new TextContent
-                                {
-                                    // 💡 FIX: Use c.Id (the "CNT-02" value)
-                                    Id = c.Id,
-                                    URL = c.URL,
-                                    UserEmail = matchingUser.Id,
-                                    textContext = c.TextContext,
-                                    ViolentWords = c.ViolentWords != null && c.ViolentWords.Any()
-                                                     ? string.Join(", ", c.ViolentWords)
-                                                     : string.Empty,
-                                    ViolentResult = "Analysed"
-                                });
-                            }
-                        }
-                        await _unitOfWork.SaveChangesAsync();
-                    }
-                }
-            }
-
-            // 5. Seed History Records
-            if (!(await historyRepo.GetAllAsync()).Any())
-            {
-                var path = "..\\Infrastructure\\Presistence\\Data\\DataSeed\\History.json";
-                if (File.Exists(path))
-                {
-                    var items = JsonSerializer.Deserialize<List<HistoryRecord>>(await File.ReadAllTextAsync(path), _jsonOptions);
-                    if (items != null) foreach (var item in items) await historyRepo.AddAsync(item);
-                    await _unitOfWork.SaveChangesAsync();
-                }
+                await _unitOfWork.SaveChangesAsync();
+                _logger.LogInformation("Seeded {Count} content records.", seeded);
             }
         }
 
-        //private string ResolvePath(string file)
-        //{
-        //    var primaryPath = Path.Combine(AppContext.BaseDirectory, "Persistence", "Data", "Seeding", file);
-        //    return File.Exists(primaryPath) ? primaryPath : Path.Combine(AppContext.BaseDirectory, file);
-        //}
+        private async Task SeedHistoryAsync(IGenericRepository<HistoryRecord, string> historyRepo)
+        {
+            if (await historyRepo.AnyAsync())
+                return;
+
+            var path = ResolveSeedFile("history.json");
+            if (path is null)
+                return;
+
+            var items = await DeserializeAsync<List<HistoryRecord>>(path);
+            if (items is null || items.Count == 0)
+                return;
+
+            foreach (var item in items)
+                await historyRepo.AddAsync(item);
+
+            await _unitOfWork.SaveChangesAsync();
+            _logger.LogInformation("Seeded {Count} history records.", items.Count);
+        }
+
+        private string? ResolveSeedFile(string fileName)
+        {
+            var candidates = new[]
+            {
+                Path.Combine(AppContext.BaseDirectory, "Data", "DataSeed", fileName),
+                Path.Combine(AppContext.BaseDirectory, "DataSeed", fileName),
+                Path.Combine(
+                    _hostEnvironment.ContentRootPath,
+                    "..",
+                    "Infrastructure",
+                    "Presistence",
+                    "Data",
+                    "DataSeed",
+                    fileName)
+            };
+
+            foreach (var candidate in candidates)
+            {
+                var fullPath = Path.GetFullPath(candidate);
+                if (File.Exists(fullPath))
+                    return fullPath;
+            }
+
+            _logger.LogWarning(
+                "Seed file {FileName} not found. Checked: {Paths}",
+                fileName,
+                string.Join(", ", candidates.Select(Path.GetFullPath)));
+
+            return null;
+        }
+
+        private async Task<T?> DeserializeAsync<T>(string path)
+        {
+            try
+            {
+                var json = await File.ReadAllTextAsync(path);
+                return JsonSerializer.Deserialize<T>(json, _jsonOptions);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "Failed to deserialize seed file {Path}.", path);
+                return default;
+            }
+        }
     }
 
     public class UserSeedModel
@@ -170,9 +267,19 @@ namespace Presistence.Data
         public string Password { get; set; } = string.Empty;
     }
 
+    public class AIModelSeedModel
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string SystemId { get; set; } = string.Empty;
+        public string ModelType { get; set; } = string.Empty;
+        public string Framework { get; set; } = string.Empty;
+        public double AccuracyThreshold { get; set; }
+    }
+
     public class ContentSeedModel
     {
-        public string Id { get; set; } = string.Empty; // This will be the unique identifier for the content (e.g., "CNT-01")
+        public string Id { get; set; } = string.Empty;
         public string URL { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
         public string UserEmail { get; set; } = string.Empty;

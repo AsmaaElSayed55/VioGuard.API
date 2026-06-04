@@ -2,6 +2,8 @@
 {
     public interface IGenericRepository <TEntity, TKey> where TEntity : BaseEntity<TKey>
     {
+        Task<bool> AnyAsync();
+
         // GetAll
         Task<IEnumerable<TEntity>> GetAllAsync(bool asNoTracking = false);
 

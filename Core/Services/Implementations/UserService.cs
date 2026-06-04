@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Domain.Contracts;
 using Domain.Entities.UserModule;
 using Services.Abstraction.Contracts;
@@ -21,8 +21,9 @@ namespace Services.Implementations
         {
             var repo = _unitOfWork.GetRepository<User, string>();
             var user = await repo.GetByIdAsync(email);
+            if (user is null)
+                return null;
 
-            // AutoMapper reads UserProfile rules above and perfectly outputs UserDto
             return _mapper.Map<UserDto>(user);
         }
 

@@ -1,4 +1,5 @@
 using Domain.Contracts;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using Presentation.Controllers;
@@ -17,7 +18,7 @@ namespace VioGuard.API
 
             // Add services to the container.
             builder.Services.AddControllers()
-                .AddApplicationPart(typeof(ReportController).Assembly);
+                .AddApplicationPart(typeof(ReportsController).Assembly);
             builder.Services.AddEndpointsApiExplorer();
 
 
@@ -68,12 +69,21 @@ namespace VioGuard.API
             builder.Services.AddScoped<ISystemService, SystemService>();
 
             builder.Services.AddScoped<IReportService, ReportService>();
-            builder.Services.AddScoped<IHistoryService, HistoryService>();
 
             // Architecture Infrastructure mappings
             builder.Services.AddAutoMapper(cfg => { }, typeof(ServicesAssemblyReference).Assembly);
             // Register the Service Manager which handles all services under one hood
             builder.Services.AddScoped<IServiceManager, ServiceManager>();
+
+            builder.Services.AddAuthorization(options =>
+            {
+                if (builder.Environment.IsDevelopment())
+                {
+                    options.DefaultPolicy = new AuthorizationPolicyBuilder()
+                        .RequireAssertion(_ => true)
+                        .Build();
+                }
+            });
 
 
             //builder.Services.AddAuthentication(options =>
@@ -97,17 +107,7 @@ namespace VioGuard.API
 
             var app = builder.Build();
 
-            // Run database migrations and seed operational tables automatically
-            using (var scope = app.Services.CreateScope())
-            {
-                var objectOfDataSeeding = scope.ServiceProvider.GetRequiredService<IDataSeeding>();
-
-                // FIX: Added 'await' so the server waits for the DB configurations to finish
-                await objectOfDataSeeding.SeedDataAsync();
-
-                // If you also want to seed default identity users instantly, run this:
-                // await objectOfDataSeeding.SeedIdentityDataAsync();
-            }
+            await ApplyMigrationsAndSeedAsync(app);
 
             if (app.Environment.IsDevelopment())
             {
@@ -117,14 +117,38 @@ namespace VioGuard.API
 
             app.UseHttpsRedirection();
 
-            // Authentication must ALWAYS execute right before Authorization middleware
-            //app.UseAuthentication();
-            //app.UseAuthorization();
+            app.UseAuthorization();
 
             
             app.MapControllers();
 
             app.Run();
+        }
+
+        private static async Task ApplyMigrationsAndSeedAsync(WebApplication app)
+        {
+            using var scope = app.Services.CreateScope();
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+            try
+            {
+                var db = scope.ServiceProvider.GetRequiredService<VioGuardDbContext>();
+                await db.Database.MigrateAsync();
+                logger.LogInformation("Database migrations applied.");
+
+                if (app.Environment.IsDevelopment())
+                {
+                    var seeder = scope.ServiceProvider.GetRequiredService<IDataSeeding>();
+                    await seeder.SeedDataAsync();
+                    logger.LogInformation("Development seed data applied.");
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Database migration or seeding failed.");
+                if (app.Environment.IsDevelopment())
+                    throw;
+            }
         }
     }
 }

@@ -11,6 +11,11 @@
             _dbSet = context.Set<TEntity>();
         }
 
+        public async Task<bool> AnyAsync()
+        {
+            return await _dbSet.AnyAsync();
+        }
+
         public async Task<IEnumerable<TEntity>> GetAllAsync(bool asNoTracking = false)
         {
             return asNoTracking

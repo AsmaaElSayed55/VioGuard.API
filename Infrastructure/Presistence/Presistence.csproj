@@ -11,11 +11,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Data\DataSeed\" />
+    <Content Include="Data\DataSeed\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.16" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.16" />
   </ItemGroup>
 
 </Project>
