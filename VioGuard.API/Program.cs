@@ -21,6 +21,7 @@ namespace VioGuard.API
             var builder = WebApplication.CreateBuilder(args);
 
             builder.Services.AddControllers()
+                .AddApplicationPart(typeof(Program).Assembly)
                 .AddApplicationPart(typeof(ReportsController).Assembly);
             builder.Services.AddEndpointsApiExplorer();
 
@@ -109,12 +110,16 @@ namespace VioGuard.API
             {
                 options.SwaggerEndpoint("/swagger/v1/swagger.json", "VioGuard API v1");
                 options.RoutePrefix = "swagger";
+                options.DocumentTitle = "VioGuard API";
             });
 
             if (!app.Environment.IsDevelopment())
                 app.UseHttpsRedirection();
+
             app.UseAuthentication();
             app.UseAuthorization();
+
+            app.MapGet("/", () => Results.Redirect("/swagger"));
             app.MapControllers();
 
             app.Run();
@@ -140,9 +145,7 @@ namespace VioGuard.API
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Database migration or seeding failed.");
-                if (app.Environment.IsDevelopment())
-                    throw;
+                logger.LogError(ex, "Database migration or seeding failed. API will still start; Swagger and endpoints remain available.");
             }
         }
     }
