@@ -10,7 +10,7 @@ namespace Presentation.Controllers
 {
     [Authorize]
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("/api/[controller]")]
     public class ReportsController : ControllerBase
     {
         private readonly IReportService _reportService;

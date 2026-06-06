@@ -9,5 +9,7 @@ namespace Services.Abstraction.Contracts
         Task<IEnumerable<ContentDto>> GetUserContentsAsync(string userEmail);
         Task<TextContentDto> AddTextContentAsync(CreateTextContentDto textDto);
         Task<VideoContentDto> AddVideoContentAsync(CreateVideoContentDto videoDto);
+        // In IContentService.cs
+        Task<byte[]> ConvertVideoFileToBinaryAsync(byte[] videoBytes);
     }
 }

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Presentation.Controllers
 {
     [ApiController]
-    [Route("api/auth")]
+    [Route("/api/auth")]
     public class AuthController : ControllerBase
     {
         private readonly IUserService _userService;

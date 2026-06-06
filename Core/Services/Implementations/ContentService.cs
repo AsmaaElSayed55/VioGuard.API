@@ -57,5 +57,10 @@ namespace Services.Implementations
 
             return _mapper.Map<VideoContentDto>(videoEntity);
         }
+
+        public Task<byte[]> ConvertVideoFileToBinaryAsync(byte[] videoBytes)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

@@ -6,7 +6,7 @@ namespace Presentation.Controllers
 {
     [Authorize]
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("/api/[controller]")]
     public class HistoryController : ControllerBase
     {
         [HttpGet]

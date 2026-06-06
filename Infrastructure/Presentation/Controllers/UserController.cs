@@ -5,7 +5,7 @@ using Shared.Dtos.User;
 namespace Presentation.Controllers
 {
     [ApiController]
-    [Route("api/users")]
+    [Route("/api/users")]
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
