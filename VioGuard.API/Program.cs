@@ -103,7 +103,7 @@ namespace VioGuard.API
 
             var app = builder.Build();
 
-            await ApplyMigrationsAndSeedAsync(app);
+          //  await ApplyMigrationsAndSeedAsync(app);
 
             app.UseSwagger();
             app.UseSwaggerUI(options =>
