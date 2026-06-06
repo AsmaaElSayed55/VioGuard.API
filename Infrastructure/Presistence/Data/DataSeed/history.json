@@ -1,7 +1,6 @@
 [
   {
     "Id": "HIST-01",
-    "SystemId": "SYS-001",
     "ContentUrl": "https://storage.cdn.media/v/sample-video-1.mp4",
     "ContentType": "Video",
     "ActionDate": "2026-06-05T10:00:00Z",

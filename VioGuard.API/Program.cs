@@ -1,6 +1,8 @@
 using Domain.Contracts;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Presentation.Controllers;
 using Presistence.Data;
@@ -8,6 +10,8 @@ using Presistence.Repositories;
 using Services;
 using Services.Abstraction.Contracts;
 using Services.Implementations;
+using System.Text;
+
 namespace VioGuard.API
 {
     public class Program
@@ -16,11 +20,9 @@ namespace VioGuard.API
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
             builder.Services.AddControllers()
                 .AddApplicationPart(typeof(ReportsController).Assembly);
             builder.Services.AddEndpointsApiExplorer();
-
 
             builder.Services.AddSwaggerGen(options =>
             {
@@ -34,46 +36,53 @@ namespace VioGuard.API
                     Type = SecuritySchemeType.ApiKey,
                     Scheme = "Bearer"
                 });
-
-                //options.AddSecurityRequirement(new OpenApiSecurityRequirement
-                //{
-                //    {
-                //        new OpenApiSecurityScheme
-                //        {
-                //            Reference = new OpenApiReference
-                //            {
-                //                Type = ReferenceType.SecurityScheme,
-                //                Id = "Bearer"
-                //            }
-                //        },
-                //        Array.Empty<string>()
-                //    }
-                //});
             });
 
-            // Database Context Configuration
             builder.Services.AddDbContext<VioGuardDbContext>(options =>
             {
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
             });
 
             builder.Services.AddScoped<IDataSeeding, DataSeeding>();
-
             builder.Services.AddScoped<DbContext>(provider => provider.GetRequiredService<VioGuardDbContext>());
-
-            // Data layer registration
             builder.Services.AddScoped(typeof(IGenericRepository<,>), typeof(GenericRepository<,>));
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
             builder.Services.AddScoped<IUserService, UserService>();
             builder.Services.AddScoped<IContentService, ContentService>();
-            builder.Services.AddScoped<ISystemService, SystemService>();
-
+            builder.Services.AddScoped<IHistoryService, HistoryService>();
             builder.Services.AddScoped<IReportService, ReportService>();
-
-            // Architecture Infrastructure mappings
-            builder.Services.AddAutoMapper(cfg => { }, typeof(ServicesAssemblyReference).Assembly);
-            // Register the Service Manager which handles all services under one hood
+            builder.Services.AddScoped<ITokenService, JwtTokenService>();
             builder.Services.AddScoped<IServiceManager, ServiceManager>();
+
+            builder.Services.AddAutoMapper(cfg => { }, typeof(ServicesAssemblyReference).Assembly);
+
+            builder.Services.AddHttpClient("MlService", client =>
+            {
+                var baseUrl = builder.Configuration["MlService:BaseUrl"] ?? "http://localhost:8000/";
+                client.BaseAddress = new Uri(baseUrl);
+                client.Timeout = TimeSpan.FromMinutes(5);
+            });
+
+            var jwtKey = builder.Configuration["Jwt:Key"] ?? "VioGuardSuperSecretKeyForDevelopmentOnly123!";
+            builder.Services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "VioGuard",
+                    ValidAudience = builder.Configuration["Jwt:Audience"] ?? "VioGuardApp",
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+                };
+            });
 
             builder.Services.AddAuthorization(options =>
             {
@@ -83,43 +92,29 @@ namespace VioGuard.API
                         .RequireAssertion(_ => true)
                         .Build();
                 }
+                else
+                {
+                    options.DefaultPolicy = new AuthorizationPolicyBuilder()
+                        .RequireAuthenticatedUser()
+                        .Build();
+                }
             });
-
-
-            //builder.Services.AddAuthentication(options =>
-            //{
-            //    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-            //    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            //})
-            //.AddJwtBearer(options =>
-            //{
-            //    options.TokenValidationParameters = new TokenValidationParameters
-            //    {
-            //        ValidateIssuer = true,
-            //        ValidateAudience = true,
-            //        ValidateLifetime = true,
-            //        ValidateIssuerSigningKey = true,
-            //        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            //        ValidAudience = builder.Configuration["Jwt:Audience"],
-            //        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "YourSuperSecretBackupKey123!"))
-            //    };
-            //});
 
             var app = builder.Build();
 
             await ApplyMigrationsAndSeedAsync(app);
 
-            if (app.Environment.IsDevelopment())
+            app.UseSwagger();
+            app.UseSwaggerUI(options =>
             {
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            }
+                options.SwaggerEndpoint("/swagger/v1/swagger.json", "VioGuard API v1");
+                options.RoutePrefix = "swagger";
+            });
 
-            app.UseHttpsRedirection();
-
+            if (!app.Environment.IsDevelopment())
+                app.UseHttpsRedirection();
+            app.UseAuthentication();
             app.UseAuthorization();
-
-            
             app.MapControllers();
 
             app.Run();

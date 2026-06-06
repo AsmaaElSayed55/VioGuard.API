@@ -14,10 +14,12 @@ namespace Presistence.Data.Configurations
             builder.Property(h => h.ContentUrl).IsRequired();
             builder.Property(h => h.ContentType).HasMaxLength(30);
             builder.Property(h => h.ActionDate).HasDefaultValueSql("GETUTCDATE()");
+            builder.Property(h => h.AttachedUserEmail).IsRequired();
 
-            builder.HasOne(h => h.SystemRoot)
-                   .WithMany(s => s.Histories)
-                   .HasForeignKey(h => h.SystemId)
+            builder.HasOne(h => h.User)
+                   .WithMany()
+                   .HasForeignKey(h => h.AttachedUserEmail)
+                   .HasPrincipalKey(u => u.Id)
                    .OnDelete(DeleteBehavior.Cascade);
         }
     }

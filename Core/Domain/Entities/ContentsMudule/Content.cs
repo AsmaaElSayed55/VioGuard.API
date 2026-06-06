@@ -5,15 +5,10 @@ namespace Domain.Entities.ContentsMudule
 {
     public abstract class Content : BaseEntity<string>
     {
-        public string URL { get; set; }
+        public string URL { get; set; } = string.Empty;
         public DateTime DetectionDate { get; set; }
         public string UserEmail { get; set; } = string.Empty; // FK
         public string ContentType { get; set; } = string.Empty;
-
-        // Shared auditing metadata properties
-        public DateTime CreatedAt { get; set; }
-        public string? CreatedBy { get; set; }
-        public DateTime? LastModified { get; set; }
 
         // Navigation property
         public User? User { get; set; }

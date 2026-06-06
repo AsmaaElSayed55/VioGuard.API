@@ -2,9 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Services.Abstraction.Contracts;
 using Shared.Dtos.Report;
-using System;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace Presentation.Controllers
 {
@@ -15,51 +13,44 @@ namespace Presentation.Controllers
     {
         private readonly IReportService _reportService;
 
-        // Injecting the service contract cleanly via constructor DI
-        public ReportsController(IReportService reportService)
+        public ReportsController(IReportService reportService)
         {
             _reportService = reportService;
         }
 
         [HttpGet("monthly-dashboard")]
-        public async Task<ActionResult<MonthlyReportDashboardDto>> GetDashboardMetrics()
+        public async Task<ActionResult<MonthlyReportDashboardDto>> GetDashboardMetrics([FromQuery] string? userEmail = null)
         {
-            // Optional production tip: Fetch the user's email directly from their secure authentication token claim:
-            // var userEmail = User.FindFirstValue(ClaimTypes.Email) ?? "user@vioguard.com";
-            // var liveMetrics = await _reportService.GetMonthlyDashboardMetricsAsync(userEmail);
+            var email = ResolveUserEmail(userEmail);
+            if (string.IsNullOrWhiteSpace(email))
+                return BadRequest(new { Message = "User email is required." });
 
-            // 🚀 FIXED: Every single property is provided so it compiles cleanly with zero constructor errors!
-            var metrics = new MonthlyReportDashboardDto(
-        TotalAnalyses: 2745,
-        TotalViolentIncidents: 84,
-        TotalNonViolentAnalyses: 1203,
-        TotalAgainstViolenceAnalyses: 458,
-        TotalNeutralTextAnalyses: 1000,
-        ViolencePercentage: 34.0,
-        VideoSummary: new VideoSummaryDto(
-          TotalVideos: 1245,
-          ViolentIncidents: 42,
-          NonViolentAnalyses: 1203
-        ),
-        TextSummary: new TextSummaryDto(
-          TotalTexts: 1500,
-          ViolentIncidents: 42,
-          AgainstViolenceAnalyses: 458,
-          NeutralTextAnalyses: 1000
-        ),
-        EnableMonthlyReports: true,
-        DateFrom: new DateTime(2026, 5, 1),
-        DateTo: new DateTime(2026, 5, 25)
-      );
-
+            var metrics = await _reportService.GetMonthlyDashboardMetricsAsync(email);
             return Ok(metrics);
         }
 
         [HttpPost("settings")]
-        public async Task<IActionResult> UpdateSettings([FromBody] UpdateReportSettingsDto dto)
+        public async Task<IActionResult> UpdateSettings(
+            [FromBody] UpdateReportSettingsDto dto,
+            [FromQuery] string? userEmail = null)
         {
-            // Web request response placeholder
-            return Ok(new { Message = "Report toggle updated.", ActiveState = dto.EnableMonthlyReports });
+            var email = ResolveUserEmail(userEmail);
+            if (string.IsNullOrWhiteSpace(email))
+                return BadRequest(new { Message = "User email is required." });
+
+            var updated = await _reportService.UpdateReportSettingsAsync(email, dto);
+            if (!updated)
+                return NotFound(new { Message = "User account lookup failed." });
+
+            return Ok(new { Message = "Report toggle updated.", ActiveState = dto.EnableMonthlyReports });
+        }
+
+        private string? ResolveUserEmail(string? queryEmail)
+        {
+            if (!string.IsNullOrWhiteSpace(queryEmail))
+                return queryEmail;
+
+            return User.FindFirstValue(ClaimTypes.Email);
         }
     }
 }

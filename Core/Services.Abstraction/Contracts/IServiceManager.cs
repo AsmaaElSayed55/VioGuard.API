@@ -4,7 +4,7 @@
     {
         IUserService UserService { get; }
         IContentService ContentService { get; }
-        ISystemService SystemService { get; }
+        IHistoryService HistoryService { get; }
         IReportService ReportService { get; }
     }
 }

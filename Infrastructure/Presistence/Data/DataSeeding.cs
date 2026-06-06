@@ -1,7 +1,6 @@
 ﻿using Domain.Contracts;
 using Domain.Entities.ContentsMudule;
 using Domain.Entities.SystemModule;
-using Domain.Entities.SystemModule.ModelsModule;
 using Domain.Entities.UserModule;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -29,67 +28,13 @@ namespace Presistence.Data
 
         public async Task SeedDataAsync()
         {
-            var systemRepo = _unitOfWork.GetRepository<SystemRoot, string>();
-            var modelRepo = _unitOfWork.GetRepository<AIModel, string>();
             var userRepo = _unitOfWork.GetRepository<User, string>();
             var contentRepo = _unitOfWork.GetRepository<Content, string>();
             var historyRepo = _unitOfWork.GetRepository<HistoryRecord, string>();
 
-            await SeedSystemRootsAsync(systemRepo);
-            await SeedAIModelsAsync(modelRepo);
             await SeedUsersAsync(userRepo);
             await SeedContentsAsync(userRepo, contentRepo);
             await SeedHistoryAsync(historyRepo);
-        }
-
-        private async Task SeedSystemRootsAsync(IGenericRepository<SystemRoot, string> systemRepo)
-        {
-            if (await systemRepo.AnyAsync())
-                return;
-
-            var path = ResolveSeedFile("systemroot.json");
-            if (path is null)
-                return;
-
-            var items = await DeserializeAsync<List<SystemRoot>>(path);
-            if (items is null || items.Count == 0)
-                return;
-
-            foreach (var item in items)
-                await systemRepo.AddAsync(item);
-
-            await _unitOfWork.SaveChangesAsync();
-            _logger.LogInformation("Seeded {Count} system roots.", items.Count);
-        }
-
-        private async Task SeedAIModelsAsync(IGenericRepository<AIModel, string> modelRepo)
-        {
-            if (await modelRepo.AnyAsync())
-                return;
-
-            var path = ResolveSeedFile("ML_Models.json");
-            if (path is null)
-                return;
-
-            var items = await DeserializeAsync<List<AIModelSeedModel>>(path);
-            if (items is null || items.Count == 0)
-                return;
-
-            foreach (var m in items)
-            {
-                await modelRepo.AddAsync(new AIModel
-                {
-                    Id = m.Id,
-                    Name = m.Name,
-                    SystemId = m.SystemId,
-                    ModelType = m.ModelType,
-                    Framework = m.Framework,
-                    AccuracyThreshold = m.AccuracyThreshold
-                });
-            }
-
-            await _unitOfWork.SaveChangesAsync();
-            _logger.LogInformation("Seeded {Count} AI models.", items.Count);
         }
 
         private async Task SeedUsersAsync(IGenericRepository<User, string> userRepo)
@@ -117,7 +62,8 @@ namespace Presistence.Data
                     Id = u.Email,
                     FullName = u.FullName,
                     Password = u.Password,
-                    UserInternalId = Guid.NewGuid().ToString()[..8]
+                    UserInternalId = Guid.NewGuid().ToString()[..8],
+                    CreatedAt = DateTime.UtcNow
                 });
             }
 
@@ -165,7 +111,9 @@ namespace Presistence.Data
                         URL = c.URL,
                         ContentType = "Video",
                         UserEmail = matchingUser.Id,
-                        ViolentPercent = c.ViolentPercent
+                        ViolentPercent = c.ViolentPercent,
+                        DetectionDate = DateTime.UtcNow,
+                        CreatedAt = DateTime.UtcNow
                     });
                     seeded++;
                 }
@@ -181,7 +129,9 @@ namespace Presistence.Data
                         ViolentWords = c.ViolentWords is { Count: > 0 }
                             ? string.Join(", ", c.ViolentWords)
                             : string.Empty,
-                        ViolentResult = "Analysed"
+                        ViolentResult = "Analysed",
+                        DetectionDate = DateTime.UtcNow,
+                        CreatedAt = DateTime.UtcNow
                     });
                     seeded++;
                 }
@@ -208,7 +158,10 @@ namespace Presistence.Data
                 return;
 
             foreach (var item in items)
+            {
+                item.CreatedAt = DateTime.UtcNow;
                 await historyRepo.AddAsync(item);
+            }
 
             await _unitOfWork.SaveChangesAsync();
             _logger.LogInformation("Seeded {Count} history records.", items.Count);
@@ -265,16 +218,6 @@ namespace Presistence.Data
         public string FullName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
-    }
-
-    public class AIModelSeedModel
-    {
-        public string Id { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
-        public string SystemId { get; set; } = string.Empty;
-        public string ModelType { get; set; } = string.Empty;
-        public string Framework { get; set; } = string.Empty;
-        public double AccuracyThreshold { get; set; }
     }
 
     public class ContentSeedModel

@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Services.Abstraction.Contracts;
 using Shared.Dtos.History;
+using System.Security.Claims;
+
 namespace Presentation.Controllers
 {
     [Authorize]
@@ -9,46 +11,52 @@ namespace Presentation.Controllers
     [Route("/api/[controller]")]
     public class HistoryController : ControllerBase
     {
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<HistoryListItemDto>>> GetUserHistory([FromQuery] string type = "All")
+        private readonly IHistoryService _historyService;
+
+        public HistoryController(IHistoryService historyService)
         {
-            // Direct query layout replacing raw values: _context.Histories.Where(...)
-            var items = new List<HistoryListItemDto>
-      {
-        new("1", "youtube.com/watch?v=dQw...", "Video", "2 hours ago", "Safe"),
-        new("2", "reddit.com/r/technology/...", "Text", "5 hours ago", "Safe"),
-        new("3", "vimeo.com/channels/...", "Video", "Yesterday", "Flagged")
-      };
+            _historyService = historyService;
+        }
 
-            if (!string.Equals(type, "All", StringComparison.OrdinalIgnoreCase))
-            {
-                items = items.Where(i => string.Equals(i.ContentType, type, StringComparison.OrdinalIgnoreCase)).ToList();
-            }
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<HistoryListItemDto>>> GetUserHistory(
+            [FromQuery] string type = "All",
+            [FromQuery] string? userEmail = null)
+        {
+            var email = ResolveUserEmail(userEmail);
+            if (string.IsNullOrWhiteSpace(email))
+                return BadRequest(new { Message = "User email is required." });
 
+            var items = await _historyService.GetUserHistoryAsync(email, type);
             return Ok(items);
         }
 
         [HttpGet("{id}/details")]
         public async Task<ActionResult<HistoryDetailsDto>> GetDetails(string id)
         {
-            // Direct query mapping layout from DB records: _context.Histories.Find(id)
-            if (id == "3")
-            {
-                return Ok(new HistoryDetailsDto(
-                  Id: "3", ScannedAt: DateTime.UtcNow.AddDays(-1), ContentType: "Video Stream (MP4)", IsVerified: true,
-                  SourceUrl: "https://storage.cdn.media/v/prod-high.mp4", CurrentStatus: "Violent Content", StatusBadgeColor: "Red",
-                  AnalysisSummary: new List<DetailFindingDto> { new("Identified high-impact physical actions in the video.", true) }
-                ));
-            }
+            var details = await _historyService.GetDetailsAsync(id);
+            if (details is null)
+                return NotFound(new { Message = "History record not found." });
 
-            return Ok(new HistoryDetailsDto(
-              Id: "2", ScannedAt: DateTime.UtcNow.AddHours(-5), ContentType: "Text", IsVerified: true,
-              SourceUrl: "https://storage.cdn.media/t/prod-high.txt", CurrentStatus: "Against Violent Content", StatusBadgeColor: "Green",
-              AnalysisSummary: new List<DetailFindingDto> { new("Encourages safety and peace as a priority.", false) }
-            ));
+            return Ok(details);
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteRecord(string id) => NoContent();
+        public async Task<IActionResult> DeleteRecord(string id)
+        {
+            var deleted = await _historyService.DeleteRecordAsync(id);
+            if (!deleted)
+                return NotFound(new { Message = "History record not found." });
+
+            return NoContent();
+        }
+
+        private string? ResolveUserEmail(string? queryEmail)
+        {
+            if (!string.IsNullOrWhiteSpace(queryEmail))
+                return queryEmail;
+
+            return User.FindFirstValue(ClaimTypes.Email);
+        }
     }
 }

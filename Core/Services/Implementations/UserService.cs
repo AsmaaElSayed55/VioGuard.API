@@ -21,10 +21,7 @@ namespace Services.Implementations
         {
             var repo = _unitOfWork.GetRepository<User, string>();
             var user = await repo.GetByIdAsync(email);
-            if (user is null)
-                return null;
-
-            return _mapper.Map<UserDto>(user);
+            return user is null ? null : _mapper.Map<UserDto>(user);
         }
 
         public async Task<IEnumerable<UserDto>> GetAllUsersAsync()
@@ -37,14 +34,9 @@ namespace Services.Implementations
         public async Task<UserDto?> CreateUserAsync(RegisterUserDto registerUserDto)
         {
             var repo = _unitOfWork.GetRepository<User, string>();
-
-            // Check if a user with this email (Id) already exists!
             var existingUser = await repo.GetByIdAsync(registerUserDto.Email);
             if (existingUser != null)
-            {
-                // 💡 CHANGE THIS LINE: Remove the throw statement and return null instead!
                 return null;
-            }
 
             var userEntity = new User
             {
@@ -52,7 +44,8 @@ namespace Services.Implementations
                 FullName = registerUserDto.FullName,
                 Password = registerUserDto.Password,
                 UserInternalId = Guid.NewGuid().ToString()[..8],
-                IsMonthlyReportEnabled = true
+                IsMonthlyReportEnabled = true,
+                CreatedAt = DateTime.UtcNow
             };
 
             await repo.AddAsync(userEntity);
@@ -60,14 +53,25 @@ namespace Services.Implementations
 
             return _mapper.Map<UserDto>(userEntity);
         }
+
+        public async Task<UserDto?> AuthenticateAsync(LoginDto loginDto)
+        {
+            var repo = _unitOfWork.GetRepository<User, string>();
+            var user = await repo.GetByIdAsync(loginDto.Email);
+            if (user is null || user.Password != loginDto.Password)
+                return null;
+
+            return _mapper.Map<UserDto>(user);
+        }
+
         public async Task<UserDto> UpdateProfileAsync(string email, UpdateProfileDto updateProfileDto)
         {
             var repo = _unitOfWork.GetRepository<User, string>();
-            var user = await repo.GetByIdAsync(email);
-
-            if (user == null) throw new KeyNotFoundException("The requested user profile does not exist.");
+            var user = await repo.GetByIdAsync(email)
+                ?? throw new KeyNotFoundException("The requested user profile does not exist.");
 
             user.FullName = updateProfileDto.FullName;
+            user.LastModified = DateTime.UtcNow;
 
             repo.Update(user);
             await _unitOfWork.SaveChangesAsync();
@@ -78,12 +82,11 @@ namespace Services.Implementations
         public async Task<UserDto> UpdatePreferencesAsync(string email, UpdatePreferencesDto updatePreferencesDto)
         {
             var repo = _unitOfWork.GetRepository<User, string>();
-            var user = await repo.GetByIdAsync(email);
-
-            if (user == null) throw new KeyNotFoundException("The requested user profile does not exist.");
+            var user = await repo.GetByIdAsync(email)
+                ?? throw new KeyNotFoundException("The requested user profile does not exist.");
 
             user.IsMonthlyReportEnabled = updatePreferencesDto.IsMonthlyReportEnabled;
-            // Map additional fields (like IsDarkMode) here if they get added to your DB schema later
+            user.LastModified = DateTime.UtcNow;
 
             repo.Update(user);
             await _unitOfWork.SaveChangesAsync();
@@ -95,12 +98,15 @@ namespace Services.Implementations
         {
             var repo = _unitOfWork.GetRepository<User, string>();
             var user = await repo.GetByIdAsync(email);
+            if (user is null)
+                return false;
 
-            if (user == null) return false;
-
-            // Optional: verify that user.Password == changePasswordDto.CurrentPassword first
+            if (!string.IsNullOrEmpty(changePasswordDto.CurrentPassword)
+                && user.Password != changePasswordDto.CurrentPassword)
+                return false;
 
             user.Password = changePasswordDto.NewPassword;
+            user.LastModified = DateTime.UtcNow;
 
             repo.Update(user);
             await _unitOfWork.SaveChangesAsync();

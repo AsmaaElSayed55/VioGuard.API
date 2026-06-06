@@ -1,8 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Services.Abstraction.Contracts;
 using Shared.Dtos.User;
-using System;
-using System.Threading.Tasks;
 
 namespace Presentation.Controllers
 {
@@ -11,46 +9,39 @@ namespace Presentation.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly ITokenService _tokenService;
 
-        public AuthController(IUserService userService)
+        public AuthController(IUserService userService, ITokenService tokenService)
         {
             _userService = userService;
+            _tokenService = tokenService;
         }
 
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterUserDto registerUserDto)
         {
-            var staticRegisteredUser = new UserDto(
-                "usr_mock_reg_7712",
-                registerUserDto.FullName ?? "Static Registered User",
-                registerUserDto.Email ?? "registered@vioguard.com",
-                true,
-                false,
-                true
-            );
+            if (string.IsNullOrWhiteSpace(registerUserDto.Email) || string.IsNullOrWhiteSpace(registerUserDto.Password))
+                return BadRequest(new { Message = "Email and password are required." });
 
-            return Ok(staticRegisteredUser);
+            var user = await _userService.CreateUserAsync(registerUserDto);
+            if (user is null)
+                return Conflict(new { Message = "A user with this email already exists." });
+
+            return Ok(user);
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
         {
-            var staticLoggedInUser = new UserDto(
-                "usr_mock_login_9943",
-                "Mock Operational User",
-                loginDto.Email ?? "activeuser@vioguard.com",
-                true,
-                false,
-                false
-            );
+            if (string.IsNullOrWhiteSpace(loginDto.Email) || string.IsNullOrWhiteSpace(loginDto.Password))
+                return BadRequest(new { Message = "Email and password are required." });
 
-            var response = new AuthResponseDto(
-                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.staticMockTokenBlobValueHere1234567890",
-                DateTime.UtcNow.AddHours(2),
-                staticLoggedInUser
-            );
+            var user = await _userService.AuthenticateAsync(loginDto);
+            if (user is null)
+                return Unauthorized(new { Message = "Invalid email or password." });
 
-            return Ok(response);
+            var (token, expiration) = _tokenService.GenerateToken(user);
+            return Ok(new AuthResponseDto(token, expiration, user));
         }
     }
 }

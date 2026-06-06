@@ -6,5 +6,5 @@ using System.Threading.Tasks;
 
 namespace Shared.Dtos.Detection
 {
-    public record AnalyzeRequestDto(string Url);
+    public record AnalyzeRequestDto(string Url, string? UserEmail = null);
 }
