@@ -1,4 +1,4 @@
-using Domain.Contracts;
+﻿using Domain.Contracts;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -39,10 +39,17 @@ namespace VioGuard.API
                 });
             });
 
+            // ==================== EXPLICIT CONFIGURATION FORCED HERE ====================
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .Build();
+
+            var connectionString = configuration.GetConnectionString("DefaultConnection");
+
             builder.Services.AddDbContext<VioGuardDbContext>(options =>
-            {
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
-            });
+                options.UseSqlServer(connectionString));
+            // ============================================================================
 
             builder.Services.AddScoped<IDataSeeding, DataSeeding>();
             builder.Services.AddScoped<DbContext>(provider => provider.GetRequiredService<VioGuardDbContext>());
@@ -60,12 +67,12 @@ namespace VioGuard.API
 
             builder.Services.AddHttpClient("MlService", client =>
             {
-                var baseUrl = builder.Configuration["MlService:BaseUrl"] ?? "http://localhost:8000/";
+                var baseUrl = configuration["MlService:BaseUrl"] ?? "http://localhost:8000/";
                 client.BaseAddress = new Uri(baseUrl);
                 client.Timeout = TimeSpan.FromMinutes(5);
             });
 
-            var jwtKey = builder.Configuration["Jwt:Key"] ?? "VioGuardSuperSecretKeyForDevelopmentOnly123!";
+            var jwtKey = configuration["Jwt:Key"] ?? "VioGuardSuperSecretKeyForDevelopmentOnly123!";
             builder.Services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -79,8 +86,8 @@ namespace VioGuard.API
                     ValidateAudience = true,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-                    ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "VioGuard",
-                    ValidAudience = builder.Configuration["Jwt:Audience"] ?? "VioGuardApp",
+                    ValidIssuer = configuration["Jwt:Issuer"] ?? "VioGuard",
+                    ValidAudience = configuration["Jwt:Audience"] ?? "VioGuardApp",
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
                 };
             });
@@ -103,7 +110,9 @@ namespace VioGuard.API
 
             var app = builder.Build();
 
-          //  await ApplyMigrationsAndSeedAsync(app);
+            app.UseDeveloperExceptionPage();
+
+            await ApplyMigrationsAndSeedAsync(app);
 
             app.UseSwagger();
             app.UseSwaggerUI(options =>
@@ -121,6 +130,23 @@ namespace VioGuard.API
 
             app.MapGet("/", () => Results.Redirect("/swagger"));
             app.MapControllers();
+
+            app.MapGet("/test-connection", async (VioGuardDbContext db) =>
+            {
+                try
+                {
+                    var canConnect = await db.Database.CanConnectAsync();
+                    return Results.Ok(new
+                    {
+                        Success = canConnect,
+                        Message = canConnect ? "Database Connected ✔" : "Cannot Connect ❌"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    return Results.Problem(ex.Message);
+                }
+            });
 
             app.Run();
         }

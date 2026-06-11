@@ -20,12 +20,26 @@ namespace Presentation.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterUserDto registerUserDto)
         {
-            if (string.IsNullOrWhiteSpace(registerUserDto.Email) || string.IsNullOrWhiteSpace(registerUserDto.Password))
-                return BadRequest(new { Message = "Email and password are required." });
+            // 1. Check for missing required fields
+            if (string.IsNullOrWhiteSpace(registerUserDto.Email) ||
+                string.IsNullOrWhiteSpace(registerUserDto.Password) ||
+                string.IsNullOrWhiteSpace(registerUserDto.FullName))
+            {
+                return BadRequest(new { Message = "Full name, email, and password are required." });
+            }
 
+            // 2. Validate that passwords match
+            if (registerUserDto.Password != registerUserDto.ConfirmPassword)
+            {
+                return BadRequest(new { Message = "Password and Confirm Password do not match." });
+            }
+
+            // 3. Proceed with user creation
             var user = await _userService.CreateUserAsync(registerUserDto);
             if (user is null)
+            {
                 return Conflict(new { Message = "A user with this email already exists." });
+            }
 
             return Ok(user);
         }
