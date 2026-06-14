@@ -2,6 +2,7 @@ using AutoMapper;
 using Domain.Contracts;
 using Domain.Entities.UserModule;
 using Services.Abstraction.Contracts;
+using Microsoft.AspNetCore.Identity; // Added for IPasswordHasher
 using Shared.Dtos.User;
 
 namespace Services.Implementations
@@ -10,11 +11,12 @@ namespace Services.Implementations
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-
+        private readonly IPasswordHasher<User> _passwordHasher; // Secure Hasher
         public UserService(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _passwordHasher = new PasswordHasher<User>(); // Instantiate hasher
         }
 
         public async Task<UserDto?> GetUserByEmailAsync(string email)
@@ -47,7 +49,8 @@ namespace Services.Implementations
                 IsMonthlyReportEnabled = true,
                 CreatedAt = DateTime.UtcNow
             };
-
+            // HASH THE PASSWORD BEFORE SAVING
+            userEntity.Password = _passwordHasher.HashPassword(userEntity, registerUserDto.Password);
             await repo.AddAsync(userEntity);
             await _unitOfWork.SaveChangesAsync();
 
@@ -60,7 +63,10 @@ namespace Services.Implementations
             var user = await repo.GetByIdAsync(loginDto.Email);
             if (user is null || user.Password != loginDto.Password)
                 return null;
-
+          //  VERIFY HASHED PASSWORD
+            var verificationResult = _passwordHasher.VerifyHashedPassword(user, user.Password, loginDto.Password);
+            if (verificationResult == PasswordVerificationResult.Failed)
+                return null;
             return _mapper.Map<UserDto>(user);
         }
 
@@ -101,12 +107,16 @@ namespace Services.Implementations
             if (user is null)
                 return false;
 
-            if (!string.IsNullOrEmpty(changePasswordDto.CurrentPassword)
-                && user.Password != changePasswordDto.CurrentPassword)
-                return false;
+          //  VERIFY CURRENT PASSWORD HASH
+            if (!string.IsNullOrEmpty(changePasswordDto.CurrentPassword))
+            {
+                var verificationResult = _passwordHasher.VerifyHashedPassword(user, user.Password, changePasswordDto.CurrentPassword);
+                if (verificationResult == PasswordVerificationResult.Failed)
+                    return false;
+            }
 
-            user.Password = changePasswordDto.NewPassword;
-            user.LastModified = DateTime.UtcNow;
+            // HASH THE NEW PASSWORD
+            user.Password = _passwordHasher.HashPassword(user, changePasswordDto.NewPassword); user.LastModified = DateTime.UtcNow;
 
             repo.Update(user);
             await _unitOfWork.SaveChangesAsync();

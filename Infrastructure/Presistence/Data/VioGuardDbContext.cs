@@ -2,10 +2,11 @@
 using Domain.Entities.SystemModule;
 using Domain.Entities.UserModule;
 using Microsoft.EntityFrameworkCore;
+using Services.Abstraction.Contracts;
 
 namespace Presistence.Data
 {
-    public class VioGuardDbContext : DbContext
+    public class VioGuardDbContext : DbContext, IApplicationDbContext
     {
         public VioGuardDbContext(DbContextOptions<VioGuardDbContext> options) : base(options)
         {

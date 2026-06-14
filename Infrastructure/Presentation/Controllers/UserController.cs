@@ -1,9 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Services.Abstraction.Contracts;
 using Shared.Dtos.User;
+using System.Security.Claims;
 
 namespace Presentation.Controllers
 {
+    [Authorize] // Protects all endpoints below; requires a valid login token
     [ApiController]
     [Route("/api/users")]
     public class UserController : ControllerBase
@@ -15,19 +18,22 @@ namespace Presentation.Controllers
             _userService = userService;
         }
 
-        [HttpGet("{email}")]
-        public async Task<IActionResult> GetProfile(string email)
+        [HttpGet("/profile")]
+        public async Task<IActionResult> GetProfile()
         {
-            var userDto = await _userService.GetUserByEmailAsync(email);
-            if (userDto == null) return NotFound(new { Message = "User profile not found." });
+            var email = GetCurrentUserEmail();
+            if (string.IsNullOrEmpty(email)) return Unauthorized();
 
-            // Returns clean, secure JSON object to the client application without exposing internal entity models
-            return Ok(userDto);
+            var user = await _userService.GetUserByEmailAsync(email); if (user is null) return NotFound(new { Message = "User profile not found." });
+
+            return Ok(user);
         }
 
-        [HttpPut("{email}/profile")]
-        public async Task<IActionResult> UpdateProfile(string email, [FromBody] UpdateProfileDto profileDto)
+        [HttpPut("/profile")]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto profileDto)
         {
+            var email = GetCurrentUserEmail();
+            if (string.IsNullOrEmpty(email)) return Unauthorized();
             try
             {
                 var updatedUser = await _userService.UpdateProfileAsync(email, profileDto);
@@ -39,9 +45,11 @@ namespace Presentation.Controllers
             }
         }
 
-        [HttpPut("{email}/preferences")]
-        public async Task<IActionResult> UpdatePreferences(string email, [FromBody] UpdatePreferencesDto preferencesDto)
+        [HttpPut("/preferences")]
+        public async Task<IActionResult> UpdatePreferences([FromBody] UpdatePreferencesDto preferencesDto)
         {
+            var email = GetCurrentUserEmail();
+            if (string.IsNullOrEmpty(email)) return Unauthorized();
             try
             {
                 var updatedUser = await _userService.UpdatePreferencesAsync(email, preferencesDto);
@@ -53,9 +61,11 @@ namespace Presentation.Controllers
             }
         }
 
-        [HttpPost("{email}/change-password")]
-        public async Task<IActionResult> ChangePassword(string email, [FromBody] ChangePasswordDto passwordDto)
+        [HttpPost("/change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto passwordDto)
         {
+            var email = GetCurrentUserEmail();
+            if (string.IsNullOrEmpty(email)) return Unauthorized();
             if (passwordDto.NewPassword != passwordDto.ConfirmPassword)
             {
                 return BadRequest(new { Message = "The new password and confirmation password fields do not match." });
@@ -65,6 +75,10 @@ namespace Presentation.Controllers
             if (!success) return NotFound(new { Message = "User account lookup failed." });
 
             return Ok(new { Message = "Password has been successfully modified." });
+        }
+        private string? GetCurrentUserEmail()
+        {
+            return User.FindFirst(ClaimTypes.Email)?.Value;
         }
     }
 }

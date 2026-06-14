@@ -6,11 +6,13 @@ using System.Threading.Tasks;
 
 namespace Shared.Dtos.History
 {
-    public record HistoryListItemDto(
-        string Id,
-        string DomainName,       // e.g., "youtube.com/watch?v=dQw..."
-        string ContentType,     // "Text" or "Video"
-        string RelativeTime,    // e.g., "2 hours ago", "Yesterday", "28/04/2024"
-        string SafetyStatus     // "Safe" or "Flagged"
-    );
+    public record HistoryListItemDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Url { get; set; } = string.Empty;
+        public string ContentType { get; set; } = string.Empty; // "Text" أو "Video"
+        public string TimeAgo { get; set; } = string.Empty; // مثل "2 hours ago" أو "Yesterday"
+        public string Status { get; set; } = string.Empty; // "Safe" أو "Flagged"
+        public DateTime DetectionDate { get; set; }
+    }
 }

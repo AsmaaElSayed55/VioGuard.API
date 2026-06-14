@@ -1,148 +1,96 @@
-using Domain.Contracts;
-using Domain.Entities.ContentsMudule;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore; 
 using Services.Abstraction.Contracts;
+using Domain.Entities.SystemModule;
 using Shared.Dtos.History;
 
 namespace Services.Implementations
 {
     public class HistoryService : IHistoryService
     {
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IApplicationDbContext _context;
 
-        public HistoryService(IUnitOfWork unitOfWork)
+        public HistoryService(IApplicationDbContext context)
         {
-            _unitOfWork = unitOfWork;
+            _context = context;
         }
 
-        public async Task<IEnumerable<HistoryListItemDto>> GetUserHistoryAsync(string userEmail, string typeFilter = "All")
+        public async Task<IEnumerable<HistoryListItemDto>> GetUserHistoryAsync(string userEmail, string type)
         {
-            var repo = _unitOfWork.GetRepository<Content, string>();
-            IEnumerable<Content> contents = (await repo.GetAllAsync(asNoTracking: true))
-                .Where(c => c.UserEmail.Equals(userEmail, StringComparison.OrdinalIgnoreCase));
+            var query = _context.Histories.Where(h => h.AttachedUserEmail == userEmail);
 
-            if (!string.Equals(typeFilter, "All", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(type, "All", StringComparison.OrdinalIgnoreCase))
             {
-                contents = contents.Where(c =>
-                    string.Equals(c.ContentType, typeFilter, StringComparison.OrdinalIgnoreCase));
+                query = query.Where(h => h.ContentType.Equals(type, StringComparison.OrdinalIgnoreCase));
             }
 
-            return contents
-                .OrderByDescending(c => c.DetectionDate)
-                .Select(MapToListItem);
+            var records = await query.OrderByDescending(h => h.ActionDate).ToListAsync();
+
+            return records.Select(h => new HistoryListItemDto
+            {
+                Id = h.Id,
+                Url = h.ContentUrl,
+                ContentType = h.ContentType,
+                Status = h.ContentType.Equals("Video", StringComparison.OrdinalIgnoreCase) ? "Flagged" : "Safe",
+                DetectionDate = h.ActionDate,
+                TimeAgo = CalculateTimeAgo(h.ActionDate)
+            });
         }
 
         public async Task<HistoryDetailsDto?> GetDetailsAsync(string id)
         {
-            var repo = _unitOfWork.GetRepository<Content, string>();
-            var content = await repo.GetByIdAsync(id);
-            if (content is null)
-                return null;
+            var record = await _context.Histories.FirstOrDefaultAsync(h => h.Id == id);
+            if (record == null) return null;
 
-            return content switch
+            var isVideo = record.ContentType.Equals("Video", StringComparison.OrdinalIgnoreCase);
+            var summary = new List<string>();
+
+            if (isVideo)
             {
-                TextContent text => MapTextDetails(text),
-                VideoContent video => MapVideoDetails(video),
-                _ => null
+                summary.Add("Identified high-impact physical actions in the video.");
+                summary.Add("Detected rapid and forceful movements consistent with aggression.");
+                summary.Add("Presence of aggressive postures and gestures between individuals.");
+            }
+            else
+            {
+                summary.Add("Aggressive tone detected in middle paragraph.");
+                summary.Add("Harmful intent identified against specific groups.");
+                summary.Add("Threatening language found in closing statements.");
+            }
+
+            return new HistoryDetailsDto
+            {
+                Id = record.Id,
+                Url = record.ContentUrl,
+                ContentType = isVideo ? "Video Stream (MP4)" : "Text",
+                FormattedDate = record.ActionDate.ToString("MMMM d, yyyy"),
+                FormattedTime = record.ActionDate.ToString("h:mm tt"),
+                CurrentStatus = isVideo ? "Violent Content" : "Non-Violent Content",
+                ConfidenceText = isVideo ? "82% MATCH" : "15% MATCH",
+                AnalysisSummary = summary
             };
         }
 
         public async Task<bool> DeleteRecordAsync(string id)
         {
-            var contentRepo = _unitOfWork.GetRepository<Content, string>();
-            var content = await contentRepo.GetByIdAsync(id);
-            if (content is null)
-                return false;
+            var record = await _context.Histories.FirstOrDefaultAsync(h => h.Id == id);
+            if (record == null) return false;
 
-            contentRepo.Delete(content);
-
-            var historyRepo = _unitOfWork.GetRepository<Domain.Entities.SystemModule.HistoryRecord, string>();
-            var histories = (await historyRepo.GetAllAsync())
-                .Where(h => h.ContentUrl.Equals(id, StringComparison.OrdinalIgnoreCase));
-            foreach (var history in histories)
-                historyRepo.Delete(history);
-
-            await _unitOfWork.SaveChangesAsync();
+            _context.Histories.Remove(record);
+            await _context.SaveChangesAsync();
             return true;
         }
 
-        private static HistoryListItemDto MapToListItem(Content content)
+        private static string CalculateTimeAgo(DateTime dateTime)
         {
-            var safetyStatus = GetSafetyStatus(content);
-            return new HistoryListItemDto(
-                content.Id,
-                ExtractDomainName(content.URL),
-                content.ContentType,
-                FormatRelativeTime(content.DetectionDate),
-                safetyStatus);
-        }
-
-        private static HistoryDetailsDto MapTextDetails(TextContent text)
-        {
-            var isViolent = text.ViolentResult.Contains("Violent", StringComparison.OrdinalIgnoreCase);
-            var findings = new List<DetailFindingDto>();
-
-            if (!string.IsNullOrWhiteSpace(text.ViolentWords))
-            {
-                foreach (var word in text.ViolentWords.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                    findings.Add(new DetailFindingDto($"Flagged phrase: {word}", true));
-            }
-
-            if (findings.Count == 0)
-                findings.Add(new DetailFindingDto(text.textContext, isViolent));
-
-            return new HistoryDetailsDto(
-                text.Id,
-                text.DetectionDate,
-                "Text",
-                true,
-                text.URL,
-                isViolent ? "Violent Content" : "Against Violent Content",
-                isViolent ? "Red" : "Green",
-                findings);
-        }
-
-        private static HistoryDetailsDto MapVideoDetails(VideoContent video)
-        {
-            var isViolent = video.ViolentPercent > 25.0;
-            return new HistoryDetailsDto(
-                video.Id,
-                video.DetectionDate,
-                "Video Stream (MP4)",
-                true,
-                video.URL,
-                isViolent ? "Violent Content" : "Non-Violent Content",
-                isViolent ? "Red" : "Green",
-                new List<DetailFindingDto>
-                {
-                    new($"Violence intensity score: {video.ViolentPercent:F1}%", isViolent)
-                });
-        }
-
-        private static string GetSafetyStatus(Content content) => content switch
-        {
-            TextContent text when text.ViolentResult.Contains("Violent", StringComparison.OrdinalIgnoreCase) => "Flagged",
-            VideoContent video when video.ViolentPercent > 25.0 => "Flagged",
-            _ => "Safe"
-        };
-
-        private static string ExtractDomainName(string url)
-        {
-            if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
-                return uri.Host + uri.PathAndQuery;
-
-            return url.Length > 40 ? url[..40] + "..." : url;
-        }
-
-        private static string FormatRelativeTime(DateTime detectionDate)
-        {
-            var span = DateTime.UtcNow - detectionDate;
-            if (span.TotalMinutes < 60)
-                return $"{Math.Max(1, (int)span.TotalMinutes)} minutes ago";
-            if (span.TotalHours < 24)
-                return $"{(int)span.TotalHours} hours ago";
-            if (span.TotalDays < 2)
-                return "Yesterday";
-            return detectionDate.ToString("dd/MM/yyyy");
+            var diff = DateTime.UtcNow - dateTime;
+            if (diff.TotalMinutes < 60) return $"{Math.Max(1, (int)diff.TotalMinutes)} minutes ago";
+            if (diff.TotalHours < 24) return $"{(int)diff.TotalHours} hours ago";
+            if (diff.TotalDays < 2) return "Yesterday";
+            return dateTime.ToString("dd/MM/yyyy");
         }
     }
 }

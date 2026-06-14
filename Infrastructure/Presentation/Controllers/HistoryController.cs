@@ -1,14 +1,16 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.Collections.Generic;
+using System.Security.Claims;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Abstraction.Contracts;
 using Shared.Dtos.History;
-using System.Security.Claims;
 
 namespace Presentation.Controllers
 {
     [Authorize]
     [ApiController]
-    [Route("/api/[controller]")]
+    [Route("api/[controller]")]
     public class HistoryController : ControllerBase
     {
         private readonly IHistoryService _historyService;

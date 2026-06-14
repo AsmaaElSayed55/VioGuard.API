@@ -3,6 +3,7 @@ using Domain.Contracts;
 using Domain.Entities.ContentsMudule;
 using Domain.Entities.SystemModule;
 using Services.Abstraction.Contracts;
+using Services.Abstraction.Exceptions;
 using Shared.Dtos.Content;
 
 namespace Services.Implementations
@@ -31,7 +32,7 @@ namespace Services.Implementations
             var contentRepo = _unitOfWork.GetRepository<Content, string>();
             var existing = await contentRepo.GetByIdAsync(textDto.URL);
             if (existing != null)
-                throw new InvalidOperationException("Content for this URL already exists.");
+                throw new AppException("Content for this URL already exists.", 409);
 
             var textEntity = _mapper.Map<TextContent>(textDto);
             textEntity.ViolentResult = textDto.ViolentWords.Any()
@@ -53,7 +54,7 @@ namespace Services.Implementations
             var contentRepo = _unitOfWork.GetRepository<Content, string>();
             var existing = await contentRepo.GetByIdAsync(videoDto.URL);
             if (existing != null)
-                throw new InvalidOperationException("Content for this URL already exists.");
+                throw new AppException("Content for this URL already exists.", 409);
 
             var videoEntity = _mapper.Map<VideoContent>(videoDto);
             videoEntity.DetectionDate = DateTime.UtcNow;
@@ -70,7 +71,7 @@ namespace Services.Implementations
         public Task<byte[]> ConvertVideoFileToBinaryAsync(byte[] videoBytes)
         {
             if (videoBytes is null || videoBytes.Length == 0)
-                throw new ArgumentException("Video bytes cannot be empty.", nameof(videoBytes));
+                throw new AppException("Video bytes cannot be empty.", 400);
 
             return Task.FromResult(videoBytes);
         }

@@ -1,13 +1,17 @@
 ﻿namespace Shared.Dtos.History
 {
-    public record HistoryDetailsDto(
-       string Id,
-        DateTime ScannedAt,
-        string ContentType,      // e.g., "Video Stream (MP4)" or "Text"
-        bool IsVerified,
-        string SourceUrl,
-        string CurrentStatus,    // "Violent Content", "Against Violent Content", "Neutral Content"
-        string StatusBadgeColor, // "Red", "Green", or "Blue" for easy frontend UI styling
-        List<DetailFindingDto> AnalysisSummary
-    );
+    public class HistoryDetailsDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Url { get; set; } = string.Empty;
+        public string ContentType { get; set; } = string.Empty;
+        public string FormattedDate { get; set; } = string.Empty; 
+        public string FormattedTime { get; set; } = string.Empty; 
+        public string CurrentStatus { get; set; } = string.Empty; 
+        public string ConfidenceText { get; set; } = string.Empty; 
+
+        public string? ExtractedTextContext { get; set; }
+
+        public List<string> AnalysisSummary { get; set; } = new();
+    }
 }
